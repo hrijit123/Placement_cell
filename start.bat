@@ -8,23 +8,19 @@ echo.
 :: Get the directory where the batch file is located
 cd /d "%~dp0"
 
-echo [1/2] Initializing Machine Learning Backend...
-cd ml-service
-
-:: Check if virtual environment exists, if not, create it
-if not exist "venv\" (
-    echo    - Creating Python Virtual Environment...
-    py -m venv venv
-)
-
-:: Activate venv and install requirements quietly
-call venv\Scripts\activate.bat
-echo    - Verifying ML Dependencies...
-pip install -r requirements.txt -q
-
-:: Start the ML service in a new window so it doesn't block. Use /k so it stays open if it crashes.
-echo    - Launching ML Server on port 8000 (Local Network Accessible)...
-start "ISL ML Backend" cmd /k "call venv\Scripts\activate.bat && uvicorn main:app --reload --host 0.0.0.0"
+:: ML SERVICE HAS BEEN SEGREGATED (SECURITY AUDIT)
+:: Uncomment the lines below to reactivate the ML Backend
+:: echo [1/2] Initializing Machine Learning Backend...
+:: cd ml-service
+:: if not exist "venv\" (
+::     echo    - Creating Python Virtual Environment...
+::     py -m venv venv
+:: )
+:: call venv\Scripts\activate.bat
+:: echo    - Verifying ML Dependencies...
+:: pip install -r requirements.txt -q
+:: echo    - Launching ML Server on port 8000 (Local Network Accessible)...
+:: start "ISL ML Backend" cmd /k "call venv\Scripts\activate.bat && uvicorn main:app --reload --host 0.0.0.0"
 
 cd ..
 

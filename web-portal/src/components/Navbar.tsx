@@ -20,7 +20,7 @@ export default function Navbar() {
             <Link href="/" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Home</Link>
             
             {/* Candidate Links */}
-            {(session as any)?.user?.role === "CANDIDATE" && (
+            {(session as any)?.user?.role === "STUDENT" && (
               <>
                 <Link href="/jobs" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Find Jobs</Link>
                 <Link href="/resume" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Resume Builder</Link>

@@ -8,20 +8,21 @@ export default async function AdminDashboard() {
   // if (!session || session.user.role !== 'ADMIN') redirect('/')
 
   // Fetch critical statistics for the management dashboard
-  const totalCandidates = await prisma.user.count({ where: { role: 'CANDIDATE' } })
-  const totalRecruiters = await prisma.user.count({ where: { role: 'RECRUITER' } })
-  const totalJobs = await prisma.job.count()
-  const totalApplications = await prisma.application.count()
-
-  // Fetch recent applications for the spotless record
-  const recentApplications = await prisma.application.findMany({
-    take: 5,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      candidate: true,
-      job: { include: { recruiter: true } }
-    }
-  })
+  const [totalUsers, totalStudents, totalRecruiters, totalJobs, totalApplications, recentApplications] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: 'STUDENT' } }),
+    prisma.user.count({ where: { role: 'RECRUITER' } }),
+    prisma.job.count(),
+    prisma.jobApplication.count(),
+    prisma.jobApplication.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        student: true,
+        job: { include: { recruiter: true } }
+      }
+    })
+  ])
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
@@ -38,7 +39,7 @@ export default async function AdminDashboard() {
 
         {/* Analytics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <StatCard title="Total Candidates" value={totalCandidates} />
+          <StatCard title="Total Students" value={totalStudents} />
           <StatCard title="Active Recruiters" value={totalRecruiters} />
           <StatCard title="Jobs Posted" value={totalJobs} />
           <StatCard title="Applications Submitted" value={totalApplications} />
@@ -51,7 +52,7 @@ export default async function AdminDashboard() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b-2 border-[#E1D8C9] text-[#6B5E4C]">
-                  <th className="py-3 px-4 font-semibold">Candidate</th>
+                  <th className="py-3 px-4 font-semibold">Student</th>
                   <th className="py-3 px-4 font-semibold">Job Title</th>
                   <th className="py-3 px-4 font-semibold">Company</th>
                   <th className="py-3 px-4 font-semibold">Status</th>
@@ -64,11 +65,11 @@ export default async function AdminDashboard() {
                     <td colSpan={5} className="py-8 text-center text-[#8B7D6B] italic">No applications on record yet.</td>
                   </tr>
                 ) : (
-                  recentApplications.map((app) => (
+                  recentApplications.map((app: any) => (
                     <tr key={app.id} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3] transition-colors">
-                      <td className="py-4 px-4">{app.candidate.name}</td>
-                      <td className="py-4 px-4 font-medium">{app.job.title}</td>
-                      <td className="py-4 px-4">{app.job.company}</td>
+                      <td className="py-4 px-4">{app.student?.name || 'Unknown'}</td>
+                      <td className="py-4 px-4 font-medium">{app.job?.title}</td>
+                      <td className="py-4 px-4">{app.job?.company}</td>
                       <td className="py-4 px-4">
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#E8F0E5] text-[#2D4A22]">
                           {app.status}

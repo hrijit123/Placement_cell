@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const RoleSchema = z.object({
-  role: z.enum(["CANDIDATE", "RECRUITER"]),
+  role: z.enum(["STUDENT", "RECRUITER"]),
 });
 
 export async function POST(req: Request) {
@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const { role } = validatedData.data;
 
     // 2. Fetch User to ensure they don't already have a role
-    // The default in Prisma is CANDIDATE, but we assume if they hit this, 
+    // The default in Prisma is STUDENT, but we assume if they hit this, 
     // it's their first time. A better check is if they haven't explicitly set it.
     // We will just allow them to update it if it's currently their first login.
     // In a real production system, you might track `onboarded: boolean`.

@@ -12,7 +12,7 @@ export async function GET() {
 
     // Must be a Candidate or Recruiter
     const role = (session.user as any).role;
-    if (role !== "CANDIDATE" && role !== "RECRUITER") {
+    if (role !== "STUDENT" && role !== "RECRUITER") {
       return NextResponse.json({ error: "Unauthorized role" }, { status: 403 });
     }
 

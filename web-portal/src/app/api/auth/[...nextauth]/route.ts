@@ -1,10 +1,11 @@
+import { NextAuthOptions } from "next-auth"
 import NextAuth from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { PrismaAdapter } from "@next-auth/prisma-adapter"
 import { prisma } from "@/lib/prisma"
 
-const handler = NextAuth({
-  adapter: PrismaAdapter(prisma),
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma) as any,
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -16,7 +17,6 @@ const handler = NextAuth({
   },
   callbacks: {
     async jwt({ token, user, trigger }) {
-      // If user logs in for the first time or role updates
       if (user) {
         token.role = (user as any).role
       }
@@ -31,8 +31,10 @@ const handler = NextAuth({
   },
   pages: {
     signIn: '/login',
-    newUser: '/onboarding' // Redirect here after first sign in
+    newUser: '/onboarding'
   }
-})
+}
+
+const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }

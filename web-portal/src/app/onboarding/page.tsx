@@ -15,7 +15,7 @@ export default function Onboarding() {
     return null;
   }
 
-  const handleRoleSelection = async (role: "CANDIDATE" | "RECRUITER" | "ADMIN") => {
+  const handleRoleSelection = async (role: "STUDENT" | "RECRUITER" | "ADMIN") => {
     setLoading(true);
     try {
       const res = await fetch("/api/user/role", {
@@ -48,7 +48,7 @@ export default function Onboarding() {
 
         <div className="grid md:grid-cols-3 gap-6">
           <button 
-            onClick={() => handleRoleSelection("CANDIDATE")}
+            onClick={() => handleRoleSelection("STUDENT")}
             disabled={loading}
             className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl shadow-sm border border-stone-100 hover:shadow-md hover:border-emerald-200 transition-all group"
           >

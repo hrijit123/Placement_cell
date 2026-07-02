@@ -1,3 +1,20 @@
+"""
+=============================================================================
+ISL CONNECT ML SERVICE - SEGREGATED DUE TO PRE-PRODUCTION SECURITY AUDIT
+=============================================================================
+STATUS: ARCHIVED / INACTIVE
+
+This FastAPI service has been segregated per the Claude Technical & Security Audit 
+findings. It currently lacks WebSocket authentication, origin validation, and 
+persistent connection capabilities on standard serverless infrastructure.
+
+Do NOT deploy this file directly to production without resolving the "Launch Blockers" 
+defined in the audit report (such as Token validation and WSS termination). 
+
+To re-enable this locally, uncomment the startup lines in `start.bat`.
+=============================================================================
+"""
+
 import json
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query

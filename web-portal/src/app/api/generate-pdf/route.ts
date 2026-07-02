@@ -64,7 +64,7 @@ ${escapeLatex(experience).split('\\n').filter((l: string) => l.trim().length > 0
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': \`attachment; filename="\${name.replace(/\\s+/g, "_")}_Resume.pdf"\`
+        'Content-Disposition': `attachment; filename="${name.replace(/\\s+/g, "_")}_Resume.pdf"`
       }
     });
 
