@@ -36,9 +36,17 @@ export default function Navbar() {
               </>
             )}
 
+            {/* Teacher Links */}
+            {(session as any)?.user?.role === "TEACHER" && (
+              <Link href="/dashboard" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Student Dossiers</Link>
+            )}
+
             {/* Admin Links */}
             {(session as any)?.user?.role === "ADMIN" && (
-              <Link href="/admin" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Admin Dashboard</Link>
+              <>
+                <Link href="/dashboard" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Student Dossiers</Link>
+                <Link href="/admin" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Admin Dashboard</Link>
+              </>
             )}
           </div>
 

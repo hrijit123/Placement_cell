@@ -15,7 +15,7 @@ const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 dossier fetches per minute per use
 
 export async function GET(
   request: Request,
-  { params }: { params: { studentId: string } }
+  { params }: { params: Promise<{ studentId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -45,7 +45,7 @@ export async function GET(
     }
 
     // --- INPUT VALIDATION ---
-    const { studentId } = params;
+    const { studentId } = await params;
     const validation = StudentIdSchema.safeParse(studentId);
     if (!validation.success) {
       return NextResponse.json({ error: 'Invalid Student ID format' }, { status: 400 });
@@ -120,6 +120,7 @@ export async function GET(
       name: studentProfile.user.name,
       email: studentProfile.user.email,
       image: studentProfile.user.image,
+      isRedacted,
       personalDetails: {
         headline: studentProfile.headline,
         address: studentProfile.address,

@@ -1,11 +1,16 @@
 import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
+import { getServerSession } from "next-auth/next"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import UserManagementTable from "./UserManagementTable"
+import ChartsSection from "./ChartsSection"
 
 export default async function AdminDashboard() {
-  // In a real app, we would verify the user is logged in and has the ADMIN role here.
-  // const session = await getServerSession(authOptions)
-  // if (!session || session.user.role !== 'ADMIN') redirect('/')
+  // Verify admin against the DB, not just the session token (audit §3.1)
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) redirect('/')
+  const adminUser = await prisma.user.findUnique({ where: { email: session.user.email } })
+  if (!adminUser || adminUser.role !== 'ADMIN' || adminUser.status !== 'ACTIVE') redirect('/')
 
   // Fetch critical statistics for the management dashboard
   const [totalUsers, totalStudents, totalRecruiters, totalJobs, totalApplications, recentApplications] = await Promise.all([
@@ -24,6 +29,65 @@ export default async function AdminDashboard() {
     })
   ])
 
+  // Aggregations for the metrics charts
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+  sixMonthsAgo.setDate(1)
+  sixMonthsAgo.setHours(0, 0, 0, 0)
+
+  const [funnelRaw, employersRaw, attendanceRaw, recentApps, placedStudents, workingNow, salaryAgg] = await Promise.all([
+    prisma.jobApplication.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.careerPlacement.groupBy({
+      by: ['company'],
+      _count: { _all: true },
+      orderBy: { _count: { company: 'desc' } },
+      take: 5
+    }),
+    prisma.attendance.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.jobApplication.findMany({
+      where: { createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true }
+    }),
+    prisma.jobApplication.groupBy({
+      by: ['studentId'],
+      where: { status: 'OFFER_ACCEPTED' }
+    }),
+    prisma.careerPlacement.count({ where: { status: 'WORKING' } }),
+    prisma.careerPlacement.aggregate({ _avg: { salary: true } })
+  ])
+
+  // Keep funnel bars in lifecycle order rather than alphabetical
+  const STATUS_ORDER = [
+    'APPLIED', 'INTERVIEW_SCHEDULED', 'INTERVIEW_ATTENDED', 'INTERVIEW_NO_SHOW',
+    'OFFER_EXTENDED', 'OFFER_ACCEPTED', 'OFFER_REJECTED_BY_STUDENT', 'REJECTED_BY_COMPANY'
+  ]
+  const funnel = STATUS_ORDER
+    .map(status => ({
+      status: status.replaceAll('_', ' '),
+      count: funnelRaw.find(f => f.status === status)?._count._all ?? 0
+    }))
+    .filter(f => f.count > 0)
+
+  const topEmployers = employersRaw.map(e => ({ company: e.company, placements: e._count._all }))
+  const attendance = attendanceRaw.map(a => ({ status: a.status, count: a._count._all }))
+
+  // Bucket the last 6 months of applications client-side (SQLite-free, portable)
+  const monthly: { month: string; applications: number }[] = []
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(sixMonthsAgo)
+    d.setMonth(d.getMonth() + i)
+    const label = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    monthly.push({
+      month: label,
+      applications: recentApps.filter(a =>
+        a.createdAt.getMonth() === d.getMonth() && a.createdAt.getFullYear() === d.getFullYear()
+      ).length
+    })
+  }
+
+  const placementRate = totalStudents > 0 ? Math.round((placedStudents.length / totalStudents) * 100) : 0
+  const avgSalary = salaryAgg._avg.salary
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -38,12 +102,20 @@ export default async function AdminDashboard() {
         </header>
 
         {/* Analytics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <StatCard title="Total Students" value={totalStudents} />
           <StatCard title="Active Recruiters" value={totalRecruiters} />
           <StatCard title="Jobs Posted" value={totalJobs} />
           <StatCard title="Applications Submitted" value={totalApplications} />
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <StatCard title="Placement Rate" value={`${placementRate}%`} />
+          <StatCard title="Currently Employed" value={workingNow} />
+          <StatCard title="Avg. Placement Salary" value={avgSalary != null ? `₹${Math.round(avgSalary).toLocaleString('en-IN')}` : '—'} />
+        </div>
+
+        {/* Metrics Charts */}
+        <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} />
 
         {/* Spotless Record: Recent Activity */}
         <section className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9]">
@@ -93,7 +165,7 @@ export default async function AdminDashboard() {
   )
 }
 
-function StatCard({ title, value }: { title: string; value: number }) {
+function StatCard({ title, value }: { title: string; value: number | string }) {
   return (
     <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9] flex flex-col justify-center items-center">
       <h3 className="text-[#6B5E4C] text-sm uppercase tracking-wider mb-2">{title}</h3>

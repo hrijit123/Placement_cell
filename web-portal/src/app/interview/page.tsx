@@ -9,6 +9,7 @@ export default function InterviewRoom() {
   const [translation, setTranslation] = useState("");
   const [isJoined, setIsJoined] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [translationStatus, setTranslationStatus] = useState<"connecting" | "connected" | "unavailable">("connecting");
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -17,7 +18,8 @@ export default function InterviewRoom() {
       try {
         const res = await fetch("/api/ws-auth");
         if (!res.ok) {
-          console.error("Failed to authenticate for WebSocket");
+          // 401 = not signed in, 403 = wrong role; either way translation can't start
+          setTranslationStatus("unavailable");
           return;
         }
         const { token } = await res.json();
@@ -30,7 +32,12 @@ export default function InterviewRoom() {
           : `ws://${wsHost}:8000/ws/translate?token=${token}`;
           
         wsRef.current = new WebSocket(wsUrl);
-        
+
+        wsRef.current.onopen = () => setTranslationStatus("connected");
+        // The ML translation service may be offline (it is disabled in the current deployment)
+        wsRef.current.onerror = () => setTranslationStatus("unavailable");
+        wsRef.current.onclose = () => setTranslationStatus((s) => (s === "connected" ? "unavailable" : s));
+
         wsRef.current.onmessage = (event) => {
           const data = JSON.parse(event.data);
           if (data.prediction) {
@@ -45,6 +52,7 @@ export default function InterviewRoom() {
         };
       } catch (err) {
         console.error("WS Auth Error:", err);
+        setTranslationStatus("unavailable");
       }
     };
 
@@ -130,6 +138,12 @@ export default function InterviewRoom() {
           <div className="bg-[#FAF8F3] text-[#2C241B] p-10 rounded shadow-lg text-center max-w-md">
             <h2 className="text-3xl font-serif mb-4">Ready to join?</h2>
             <p className="text-[#6B5E4C] mb-8">Your camera will be used to translate Indian Sign Language in real-time during the interview.</p>
+            {translationStatus === "unavailable" && (
+              <div className="mb-6 px-4 py-3 rounded bg-[#F5EDE0] border border-[#D9C7A8] text-[#7A5C2E] text-sm text-left" role="alert">
+                <strong className="block mb-1">Live translation is unavailable.</strong>
+                You can still join, but ISL-to-text captions will not appear. Make sure you are signed in as a student or recruiter, and that the translation service is running.
+              </div>
+            )}
             <button 
               onClick={startInterview}
               disabled={!isScriptLoaded}
@@ -158,7 +172,9 @@ export default function InterviewRoom() {
               {/* Real-time Closed Captions */}
               <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-3/4 text-center">
                 <div className="bg-black/60 backdrop-blur-sm p-4 rounded text-2xl font-semibold text-white tracking-wide shadow-lg border border-white/10">
-                  {translation || "Waiting for signs..."}
+                  {translationStatus === "unavailable"
+                    ? "⚠ Translation service offline — captions disabled"
+                    : translation || "Waiting for signs..."}
                 </div>
               </div>
             </div>

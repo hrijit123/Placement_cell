@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -7,9 +8,10 @@ const StatusSchema = z.object({
   status: z.enum(["ACTIVE", "SUSPENDED", "BANNED"]),
 });
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession();
+    const { id } = await params;
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const adminUser = await prisma.user.findUnique({ where: { email: session.user.email } });
@@ -17,7 +19,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (adminUser.id === params.id) {
+    if (adminUser.id === id) {
       return NextResponse.json({ error: "Cannot change your own status" }, { status: 400 });
     }
 
@@ -28,7 +30,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: validatedData.data.status },
     });
 
