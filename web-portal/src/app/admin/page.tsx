@@ -79,7 +79,7 @@ export default async function AdminDashboard() {
     const label = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
     monthly.push({
       month: label,
-      applications: recentApps.filter(a =>
+      applications: recentApps.filter((a: any) =>
         a.createdAt.getMonth() === d.getMonth() && a.createdAt.getFullYear() === d.getFullYear()
       ).length
     })
