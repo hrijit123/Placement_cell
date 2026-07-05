@@ -23,7 +23,7 @@ export default function DashboardHome() {
       <div className="min-h-screen bg-[#FDFBF7] flex flex-col items-center justify-center text-center p-10">
         <h1 className="text-3xl font-serif text-[#2C241B] mb-3">Staff Access Only</h1>
         <p className="text-[#6B5E4C] max-w-md">
-          The placement cell dashboard is available to NGO teachers and administrators.
+          The student database is available to NGO teachers and administrators.
           Please sign in with a staff account.
         </p>
       </div>
@@ -33,19 +33,24 @@ export default function DashboardHome() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const id = studentId.trim();
-    if (id) router.push(`/dashboard/student/${encodeURIComponent(id)}`);
+    if (id) router.push(`/database/${encodeURIComponent(id)}`);
   };
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
       <div className="max-w-3xl mx-auto">
         <header className="mb-10 border-b border-[#E1D8C9] pb-6">
-          <h1 className="text-4xl font-serif text-[#2C241B] mb-2">Placement Cell Dashboard</h1>
-          <p className="text-[#6B5E4C]">
-            {role === "TEACHER"
-              ? "Look up students in your assigned cohorts. Some sensitive fields are restricted."
-              : "Look up any student's full 360° dossier."}
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-serif text-[#2C241B] mb-2">Student Database</h1>
+              <p className="text-[#6B5E4C]">
+                {role === "TEACHER"
+                  ? "Look up students in your assigned cohorts. Some sensitive fields are restricted."
+                  : "Look up any student's full 360° database record."}
+              </p>
+            </div>
+            <a href="/staff" className="text-sm text-[#6B5E4C] hover:text-[#2C241B] px-4 py-2 border border-[#E1D8C9] rounded hover:bg-white">Back to Portal</a>
+          </div>
         </header>
 
         <form onSubmit={submit} className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9]">
@@ -67,11 +72,11 @@ export default function DashboardHome() {
               disabled={!studentId.trim()}
               className="px-6 py-3 bg-[#2C241B] text-[#FDFBF7] font-semibold rounded hover:bg-[#1A1510] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Open Dossier
+              Open Record
             </button>
           </div>
           <p className="text-xs text-[#8B7D6B] mt-3">
-            Every dossier access is logged for auditing purposes.
+            Every database access is logged for auditing purposes.
           </p>
         </form>
       </div>

@@ -22,30 +22,14 @@ export default function Navbar() {
             {/* Candidate Links */}
             {(session as any)?.user?.role === "STUDENT" && (
               <>
-                <Link href="/jobs" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Find Jobs</Link>
-                <Link href="/resume" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Resume Builder</Link>
-                <Link href="/interview" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Interview Room</Link>
+                <Link href="/router?role=STUDENT" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">My Record</Link>
               </>
             )}
 
-            {/* Recruiter Links */}
-            {(session as any)?.user?.role === "RECRUITER" && (
+            {/* Staff Links */}
+            {((session as any)?.user?.role === "TEACHER" || (session as any)?.user?.role === "ADMIN") && (
               <>
-                <Link href="/jobs/post" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Post a Job</Link>
-                <Link href="/interview" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Interview Room</Link>
-              </>
-            )}
-
-            {/* Teacher Links */}
-            {(session as any)?.user?.role === "TEACHER" && (
-              <Link href="/dashboard" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Student Dossiers</Link>
-            )}
-
-            {/* Admin Links */}
-            {(session as any)?.user?.role === "ADMIN" && (
-              <>
-                <Link href="/dashboard" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Student Dossiers</Link>
-                <Link href="/admin" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Admin Dashboard</Link>
+                <Link href="/staff" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Staff Portal</Link>
               </>
             )}
           </div>
