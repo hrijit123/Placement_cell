@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-export default function DatabaseRecordView({ studentId }: { studentId: string }) {
+export default function DatabaseRecordView({ studentId, role }: { studentId: string, role?: string }) {
   const [state, setState] = useState<any>({ status: "loading" });
   const [activeTab, setActiveTab] = useState<"transcripts" | "tracker">("transcripts");
   const [isEditing, setIsEditing] = useState(false);
@@ -96,12 +96,14 @@ export default function DatabaseRecordView({ studentId }: { studentId: string })
           >
             Transcripts & Information
           </button>
-          <button 
-            onClick={() => setActiveTab("tracker")}
-            className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "tracker" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
-          >
-            Placement Tracker
-          </button>
+          {role !== "STUDENT" && (
+            <button 
+              onClick={() => setActiveTab("tracker")}
+              className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "tracker" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
+            >
+              Placement Tracker
+            </button>
+          )}
         </div>
 
         {activeTab === "transcripts" && (

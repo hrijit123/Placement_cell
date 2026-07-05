@@ -8,8 +8,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
   const session = await getServerSession(authOptions);
   const role = (session as any)?.user?.role;
 
-  if (!session || (role !== "ADMIN" && role !== "TEACHER")) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // If the user is a STUDENT, they can only edit their own profile
+  if (role === "STUDENT") {
+    const user = await prisma.user.findUnique({ where: { email: session.user?.email! }, include: { profile: true } });
+    if (user?.profile?.studentId !== studentId) {
+      return NextResponse.json({ error: "Forbidden: Can only edit your own profile" }, { status: 403 });
+    }
+  } else if (role !== "ADMIN" && role !== "TEACHER") {
+    // Other roles are blocked
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const data = await req.json();

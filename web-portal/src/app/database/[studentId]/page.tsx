@@ -23,5 +23,5 @@ export default async function DossierPage({ params }: { params: Promise<{ studen
     }
   }
 
-  return <DatabaseRecordView studentId={studentId} />;
+  return <DatabaseRecordView studentId={studentId} role={user?.role} />;
 }

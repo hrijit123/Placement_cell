@@ -34,9 +34,25 @@ export default async function RouterPage({ searchParams }: { searchParams: { rol
   if (user.role === "ADMIN" || user.role === "TEACHER") {
     redirect("/staff");
   } else if (user.role === "STUDENT") {
+    // Check if profile exists
+    let profile = await prisma.profile.findUnique({
+      where: { userId: user.id }
+    });
+
+    if (!profile) {
+      // Create profile with a new student ID if they don't have one
+      const newStudentId = `STU-${Math.floor(10000 + Math.random() * 90000)}`;
+      profile = await prisma.profile.create({
+        data: {
+          userId: user.id,
+          studentId: newStudentId
+        }
+      });
+    }
+
     // Redirect to their own dossier
-    redirect(`/database/${user.id}`);
+    redirect(`/database/${profile.studentId}`);
   } else {
-    redirect("/onboarding");
+    redirect("/");
   }
 }
