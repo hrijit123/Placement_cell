@@ -64,12 +64,12 @@ export default async function AdminDashboard() {
   const funnel = STATUS_ORDER
     .map(status => ({
       status: status.replaceAll('_', ' '),
-      count: funnelRaw.find(f => f.status === status)?._count._all ?? 0
+      count: funnelRaw.find((f: any) => f.status === status)?._count._all ?? 0
     }))
-    .filter(f => f.count > 0)
+    .filter((f: any) => f.count > 0)
 
-  const topEmployers = employersRaw.map(e => ({ company: e.company, placements: e._count._all }))
-  const attendance = attendanceRaw.map(a => ({ status: a.status, count: a._count._all }))
+  const topEmployers = employersRaw.map((e: any) => ({ company: e.company, placements: e._count._all }))
+  const attendance = attendanceRaw.map((a: any) => ({ status: a.status, count: a._count._all }))
 
   // Bucket the last 6 months of applications client-side (SQLite-free, portable)
   const monthly: { month: string; applications: number }[] = []
