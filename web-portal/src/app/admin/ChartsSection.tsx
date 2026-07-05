@@ -124,7 +124,7 @@ export default function ChartsSection({
                 innerRadius={60}
                 outerRadius={95}
                 paddingAngle={2}
-                label={({ name, percent }) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
+                label={({ name, percent }: any) => `${name} ${Math.round((percent ?? 0) * 100)}%`}
               >
                 {attendance.map((entry) => (
                   <Cell key={entry.status} fill={ATTENDANCE_COLORS[entry.status] || TAN} />
