@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     // Create a simple CSV string
     const headers = ["ID", "Name", "Email", "Role", "Status", "JoinedAt"];
-    const rows = users.map(u => [
+    const rows = users.map((u: any) => [
       u.id, 
       `"${u.name || ''}"`, 
       `"${u.email || ''}"`, 
