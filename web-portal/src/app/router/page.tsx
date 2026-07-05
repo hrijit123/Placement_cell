@@ -3,14 +3,14 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
-export default async function RouterPage({ searchParams }: { searchParams: { role?: string } }) {
+export default async function RouterPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
     redirect("/");
   }
 
-  const requestedRole = searchParams.role;
+  const { role: requestedRole } = await searchParams;
 
   // Find the user in DB
   const user = await prisma.user.findUnique({
