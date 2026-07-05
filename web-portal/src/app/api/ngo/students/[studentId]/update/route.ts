@@ -4,85 +4,132 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
-  const { studentId } = await params;
-  const session = await getServerSession(authOptions);
-  const role = (session as any)?.user?.role;
+  try {
+    const { studentId } = await params;
+    const session = await getServerSession(authOptions);
+    const role = (session as any)?.user?.role;
 
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // If the user is a STUDENT, they can only edit their own profile
-  if (role === "STUDENT") {
-    const user = await prisma.user.findUnique({ where: { email: session.user?.email! }, include: { profile: true } });
-    if (user?.profile?.studentId !== studentId) {
-      return NextResponse.json({ error: "Forbidden: Can only edit your own profile" }, { status: 403 });
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-  } else if (role !== "ADMIN" && role !== "TEACHER") {
-    // Other roles are blocked
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
-  const data = await req.json();
+    const actor = await prisma.user.findUnique({ where: { email: session.user.email! }, include: { profile: true } });
+    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const profile = await prisma.profile.findUnique({
-    where: { studentId }
-  });
-
-  if (!profile) {
-    return NextResponse.json({ error: "Student not found" }, { status: 404 });
-  }
-
-  // Teacher restriction check
-  if (role === "TEACHER") {
-    const teacherEmail = session.user?.email!;
-    const teacherUser = await prisma.user.findUnique({
-      where: { email: teacherEmail },
-      include: { cohortsLed: true }
-    });
-    const studentProfile = await prisma.profile.findUnique({
+    const profile = await prisma.profile.findUnique({
       where: { studentId },
-      include: { cohorts: true }
+      include: { cohorts: true, user: true }
     });
-    
-    const teacherCohortIds = teacherUser?.cohortsLed.map(c => c.id) || [];
-    const studentCohortIds = studentProfile?.cohorts.map(c => c.id) || [];
-    const hasAccess = studentCohortIds.some(id => teacherCohortIds.includes(id));
 
-    if (!hasAccess) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    if (!profile) {
+      return NextResponse.json({ error: "Student not found" }, { status: 404 });
     }
+
+    // --- ACCESS CONTROL ---
+    if (role === "STUDENT") {
+      if (actor.profile?.studentId !== studentId) {
+        return NextResponse.json({ error: "Forbidden: Can only edit your own profile" }, { status: 403 });
+      }
+    } else if (role === "TEACHER") {
+      const teacherUser = await prisma.user.findUnique({
+        where: { id: actor.id },
+        include: { cohortsLed: true }
+      });
+      const teacherCohortIds = teacherUser?.cohortsLed.map(c => c.id) || [];
+      const studentCohortIds = profile.cohorts.map(c => c.id) || [];
+      const hasAccess = studentCohortIds.some(id => teacherCohortIds.includes(id));
+
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Access denied: Out of cohort edits not permitted" }, { status: 403 });
+      }
+    } else if (role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const data = await req.json();
+
+    // --- DATA TRANSFORMATION (Verification State) ---
+    // If student, mark official records as SELF_REPORTED. If teacher/admin, VERIFIED.
+    const verificationStatus = role === "STUDENT" ? "SELF_REPORTED" : "VERIFIED";
+
+    const processVerifiedField = (incomingValue: any, existingValue: string | null) => {
+      if (incomingValue === undefined) return existingValue;
+      return JSON.stringify({ value: incomingValue, status: verificationStatus });
+    };
+
+    const updatedData: any = {
+      headline: data.headline !== undefined ? data.headline : profile.headline,
+      address: data.address !== undefined ? data.address : profile.address,
+      languages: data.languages !== undefined ? data.languages : profile.languages,
+      hobbies: data.hobbies !== undefined ? data.hobbies : profile.hobbies,
+      vocation: data.vocation !== undefined ? data.vocation : profile.vocation,
+      disabilityInfo: data.disabilityInfo !== undefined ? data.disabilityInfo : profile.disabilityInfo,
+      skills: data.skills !== undefined ? data.skills : profile.skills,
+      experience: data.experience !== undefined ? data.experience : profile.experience,
+      courseworks: data.courseworks !== undefined ? data.courseworks : profile.courseworks,
+      internships: data.internships !== undefined ? data.internships : profile.internships,
+      expectedSalary: data.expectedSalary !== undefined ? data.expectedSalary : profile.expectedSalary,
+      availability: data.availability !== undefined ? data.availability : profile.availability,
+      
+      // Verified Fields
+      education: processVerifiedField(data.education, profile.education),
+      certifications: processVerifiedField(data.certifications, profile.certifications),
+      transcripts: processVerifiedField(data.transcripts, profile.transcripts),
+    };
+
+    // Update profile
+    await prisma.profile.update({
+      where: { studentId },
+      data: updatedData
+    });
+
+    // --- AUDIT LOGGING ---
+    await prisma.recordAuditLog.create({
+      data: {
+        profileId: profile.id,
+        actorId: actor.id,
+        action: "UPDATE",
+        field: "Profile Data (Bulk)",
+      }
+    });
+
+    // --- NOTIFICATIONS ---
+    if (role === "STUDENT") {
+      // Notify student
+      await prisma.notification.create({
+        data: {
+          recipientId: actor.id,
+          profileId: profile.id,
+          message: "Your profile update has been submitted and is pending verification."
+        }
+      });
+      // Notify assigned teachers and admins
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+      const teacherIds = [...new Set(profile.cohorts.map(c => c.teacherId))];
+      
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: { recipientId: admin.id, profileId: profile.id, message: `Student ${profile.user.name || studentId} updated their profile.` }
+        });
+      }
+      for (const tId of teacherIds) {
+        await prisma.notification.create({
+          data: { recipientId: tId, profileId: profile.id, message: `Student ${profile.user.name || studentId} updated their profile.` }
+        });
+      }
+    } else {
+      // Notify Admins
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: { recipientId: admin.id, profileId: profile.id, message: `${role} ${actor.name || actor.email} updated profile for ${profile.user.name || studentId}.` }
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Update error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-
-  // Update profile
-  await prisma.profile.update({
-    where: { studentId },
-    data: {
-      headline: data.headline,
-      address: data.address,
-      languages: data.languages,
-      hobbies: data.hobbies,
-      vocation: data.vocation,
-      disabilityInfo: data.disabilityInfo,
-      skills: data.skills,
-      education: data.education,
-      experience: data.experience,
-      courseworks: data.courseworks,
-      internships: data.internships,
-      certifications: data.certifications,
-      expectedSalary: data.expectedSalary,
-      availability: data.availability,
-    }
-  });
-
-  // Log access
-  await prisma.dossierAccessLog.create({
-    data: {
-      viewerId: (await prisma.user.findUnique({ where: { email: session.user?.email! } }))!.id,
-      studentId: studentId,
-      reason: "Updated transcripts/information via Database form."
-    }
-  });
-
-  return NextResponse.json({ success: true });
 }

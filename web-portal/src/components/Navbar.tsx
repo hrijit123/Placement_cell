@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
+import NotificationsDropdown from "./NotificationsDropdown";
 
 export default function Navbar() {
   const { data: session, status } = useSession();
@@ -39,6 +40,7 @@ export default function Navbar() {
               <div className="w-8 h-8 rounded-full bg-stone-200 animate-pulse"></div>
             ) : session ? (
               <div className="flex items-center gap-4">
+                <NotificationsDropdown />
                 <span className="text-sm font-medium text-stone-700 hidden sm:block">
                   {session.user?.name} ({(session as any)?.user?.role})
                 </span>

@@ -13,16 +13,29 @@ enum Role {
   ADMIN
 }
 
-enum ApplicationStatus {
-  APPLIED
-  INTERVIEW_SCHEDULED
-  INTERVIEW_ATTENDED
-  INTERVIEW_NO_SHOW
-  OFFER_EXTENDED
-  REJECTED_BY_COMPANY
-  OFFER_REJECTED_BY_STUDENT
-  OFFER_ACCEPTED
+enum VerificationStatus {
+  SELF_REPORTED
+  VERIFIED
+  REJECTED
 }
+
+enum CareerRecordType {
+  INTERVIEW
+  PLACEMENT
+}
+
+enum InterviewOutcome {
+  APPLIED
+  SCHEDULED
+  ATTENDED
+  NO_SHOW
+  OFFER_EXTENDED
+  OFFER_ACCEPTED
+  OFFER_REJECTED_BY_STUDENT
+  REJECTED_BY_COMPANY
+}
+
+
 
 enum PlacementStatus {
   WORKING
@@ -61,15 +74,15 @@ model User {
   // Core Relations (onDelete Restrict to preserve NGO records)
   profile          Profile?
   jobsPosted       Job[]              @relation("RecruiterJobs")
-  applications     JobApplication[]   @relation("StudentApplications")
-  careerHistory    CareerPlacement[]  @relation("StudentCareerHistory")
   attendance       Attendance[]       @relation("StudentAttendance")
   
   // Cohorts managed by a teacher
   cohortsLed       Cohort[]           @relation("TeacherCohorts")
   
-  // Audit Logs
-  dossierAccesses  DossierAccessLog[] @relation("UserAccessLogs")
+  // Audit & Notifications
+  accessLogs       AccessLog[]        @relation("UserAccessLogs")
+  notifications    Notification[]     @relation("UserNotifications")
+  auditLogs        RecordAuditLog[]   @relation("UserAuditLogs")
 }
 
 model Profile {
@@ -91,10 +104,11 @@ model Profile {
   // Professional Background
   skills         String? // Stored as comma separated or JSON
   experience     String? // JSON or text
-  education      String? // JSON or text
+  education      String? // JSON containing { value, status: VerificationStatus }
   courseworks    String? // JSON or text
   internships    String? // JSON or text
-  certifications String?
+  certifications String? // JSON array of certs
+  transcripts    String? // JSON array of file URLs and term data
   
   // Job Preferences
   expectedSalary String?
@@ -104,6 +118,11 @@ model Profile {
 
   // Assigned Cohorts
   cohorts        Cohort[] @relation("StudentCohorts")
+
+  // Relations
+  careerTrack    CareerRecord[]
+  notifications  Notification[]
+  auditLogs      RecordAuditLog[]
 }
 
 model Cohort {
@@ -120,15 +139,41 @@ model Cohort {
   updatedAt   DateTime  @updatedAt
 }
 
-model DossierAccessLog {
-  id          String   @id @default(uuid())
-  viewerId    String
-  viewer      User     @relation("UserAccessLogs", fields: [viewerId], references: [id], onDelete: Restrict)
+model AccessLog {
+  id              String   @id @default(uuid())
+  actorId         String
+  actor           User     @relation("UserAccessLogs", fields: [actorId], references: [id], onDelete: Restrict)
   
-  studentId   String   // The NGO student ID that was accessed
-  reason      String?
+  targetStudentId String
+  isOutOfCohort   Boolean  @default(false)
+  reason          String?
+  timestamp       DateTime @default(now())
+}
+
+model RecordAuditLog {
+  id          String   @id @default(uuid())
+  profileId   String
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  actorId     String   // The User who made the change
+  actor       User     @relation("UserAuditLogs", fields: [actorId], references: [id], onDelete: Restrict)
+  
+  action      String   // "UPDATE", "CREATE", "VERIFY"
+  field       String   // The specific field changed (e.g. "salary", "transcripts")
+  oldValue    String?  @db.Text
+  newValue    String?  @db.Text
   
   timestamp   DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipientId String   // User ID
+  recipient   User     @relation("UserNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+  profileId   String?  // The student profile this relates to
+  profile     Profile? @relation(fields: [profileId], references: [id])
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
 
 model Job {
@@ -142,42 +187,32 @@ model Job {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   isActive    Boolean  @default(true)
-
-  applications JobApplication[]
 }
 
-model JobApplication {
-  id          String            @id @default(uuid())
-  jobId       String
-  job         Job               @relation(fields: [jobId], references: [id], onDelete: Restrict)
-  studentId   String
-  student     User              @relation("StudentApplications", fields: [studentId], references: [id], onDelete: Restrict)
+model CareerRecord {
+  id              String   @id @default(uuid())
+  profileId       String
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
   
-  status      ApplicationStatus @default(APPLIED)
-  offeredSalary Float?
-  rejectionReason String?
-  notes       String?
+  recordType      CareerRecordType
   
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-}
-
-model CareerPlacement {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation("StudentCareerHistory", fields: [userId], references: [id], onDelete: Restrict)
+  // Common Fields
+  company         String
+  role            String
+  verification    VerificationStatus @default(SELF_REPORTED)
   
-  company     String
-  role        String
-  salary      Float?
+  // Interview Specific
+  interviewStatus InterviewOutcome?
   
-  startDate   DateTime
-  endDate     DateTime?
-  status      PlacementStatus @default(WORKING)
+  // Placement Specific
+  placementStatus PlacementStatus?
+  salary          Float?
+  startDate       DateTime?
+  endDate         DateTime?
+  nextMove        String?
   
-  nextMove    String? // "Where are they now" if they left
-  
-  createdAt   DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Attendance {

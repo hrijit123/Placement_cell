@@ -6,72 +6,68 @@ import UserManagementTable from "./UserManagementTable"
 import ChartsSection from "./ChartsSection"
 
 export default async function AdminDashboard() {
-  // Verify admin against the DB, not just the session token (audit §3.1)
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) redirect('/')
   const adminUser = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!adminUser || adminUser.role !== 'ADMIN' || adminUser.status !== 'ACTIVE') redirect('/')
 
-  // Fetch critical statistics for the management dashboard
   const [totalUsers, totalStudents, totalRecruiters, totalJobs, totalApplications, recentApplications] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: 'STUDENT' } }),
     prisma.user.count({ where: { role: 'RECRUITER' } }),
     prisma.job.count(),
-    prisma.jobApplication.count(),
-    prisma.jobApplication.findMany({
+    prisma.careerRecord.count({ where: { recordType: 'INTERVIEW' } }),
+    prisma.careerRecord.findMany({
       take: 5,
+      where: { recordType: 'INTERVIEW' },
       orderBy: { createdAt: 'desc' },
       include: {
-        student: true,
-        job: { include: { recruiter: true } }
+        profile: { include: { user: true } }
       }
     })
   ])
 
-  // Aggregations for the metrics charts
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
   sixMonthsAgo.setDate(1)
   sixMonthsAgo.setHours(0, 0, 0, 0)
 
   const [funnelRaw, employersRaw, attendanceRaw, recentApps, placedStudents, workingNow, salaryAgg] = await Promise.all([
-    prisma.jobApplication.groupBy({ by: ['status'], _count: { _all: true } }),
-    prisma.careerPlacement.groupBy({
+    prisma.careerRecord.groupBy({ by: ['interviewStatus'], where: { recordType: 'INTERVIEW' }, _count: { _all: true } }),
+    prisma.careerRecord.groupBy({
       by: ['company'],
+      where: { recordType: 'PLACEMENT' },
       _count: { _all: true },
       orderBy: { _count: { company: 'desc' } },
       take: 5
     }),
     prisma.attendance.groupBy({ by: ['status'], _count: { _all: true } }),
-    prisma.jobApplication.findMany({
-      where: { createdAt: { gte: sixMonthsAgo } },
+    prisma.careerRecord.findMany({
+      where: { recordType: 'INTERVIEW', createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true }
     }),
-    prisma.jobApplication.groupBy({
-      by: ['studentId'],
-      where: { status: 'OFFER_ACCEPTED' }
+    prisma.careerRecord.groupBy({
+      by: ['profileId'],
+      where: { recordType: 'INTERVIEW', interviewStatus: 'OFFER_ACCEPTED' }
     }),
-    prisma.careerPlacement.count({ where: { status: 'WORKING' } }),
-    prisma.careerPlacement.aggregate({ _avg: { salary: true } })
+    prisma.careerRecord.count({ where: { recordType: 'PLACEMENT', placementStatus: 'WORKING' } }),
+    prisma.careerRecord.aggregate({ _avg: { salary: true } })
   ])
 
-  // Keep funnel bars in lifecycle order rather than alphabetical
   const STATUS_ORDER = [
-    'APPLIED', 'INTERVIEW_SCHEDULED', 'INTERVIEW_ATTENDED', 'INTERVIEW_NO_SHOW',
+    'APPLIED', 'SCHEDULED', 'ATTENDED', 'NO_SHOW',
     'OFFER_EXTENDED', 'OFFER_ACCEPTED', 'OFFER_REJECTED_BY_STUDENT', 'REJECTED_BY_COMPANY'
   ]
   const funnel = STATUS_ORDER
     .map(status => ({
       status: status.replaceAll('_', ' '),
-      count: funnelRaw.find((f: any) => f.status === status)?._count._all ?? 0
+      count: funnelRaw.find((f: any) => f.interviewStatus === status)?._count._all ?? 0
     }))
     .filter((f: any) => f.count > 0)
 
   const topEmployers = employersRaw.map((e: any) => ({ company: e.company, placements: e._count._all }))
   const attendance = attendanceRaw.map((a: any) => ({ status: a.status, count: a._count._all }))
 
-  // Bucket the last 6 months of applications client-side (SQLite-free, portable)
   const monthly: { month: string; applications: number }[] = []
   for (let i = 0; i < 6; i++) {
     const d = new Date(sixMonthsAgo)
@@ -101,12 +97,11 @@ export default async function AdminDashboard() {
           </div>
         </header>
 
-        {/* Analytics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <StatCard title="Total Students" value={totalStudents} />
           <StatCard title="Active Recruiters" value={totalRecruiters} />
           <StatCard title="Jobs Posted" value={totalJobs} />
-          <StatCard title="Applications Submitted" value={totalApplications} />
+          <StatCard title="Applications Logged" value={totalApplications} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <StatCard title="Placement Rate" value={`${placementRate}%`} />
@@ -114,10 +109,8 @@ export default async function AdminDashboard() {
           <StatCard title="Avg. Placement Salary" value={avgSalary != null ? `₹${Math.round(avgSalary).toLocaleString('en-IN')}` : '—'} />
         </div>
 
-        {/* Metrics Charts */}
         <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} />
 
-        {/* Spotless Record: Recent Activity */}
         <section className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9]">
           <h2 className="text-2xl font-serif text-[#2C241B] mb-6">Recent Applications Record</h2>
           <div className="overflow-x-auto">
@@ -125,7 +118,7 @@ export default async function AdminDashboard() {
               <thead>
                 <tr className="border-b-2 border-[#E1D8C9] text-[#6B5E4C]">
                   <th className="py-3 px-4 font-semibold">Student</th>
-                  <th className="py-3 px-4 font-semibold">Job Title</th>
+                  <th className="py-3 px-4 font-semibold">Role</th>
                   <th className="py-3 px-4 font-semibold">Company</th>
                   <th className="py-3 px-4 font-semibold">Status</th>
                   <th className="py-3 px-4 font-semibold">Date</th>
@@ -139,12 +132,12 @@ export default async function AdminDashboard() {
                 ) : (
                   recentApplications.map((app: any) => (
                     <tr key={app.id} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3] transition-colors">
-                      <td className="py-4 px-4">{app.student?.name || 'Unknown'}</td>
-                      <td className="py-4 px-4 font-medium">{app.job?.title}</td>
-                      <td className="py-4 px-4">{app.job?.company}</td>
+                      <td className="py-4 px-4">{app.profile?.user?.name || 'Unknown'}</td>
+                      <td className="py-4 px-4 font-medium">{app.role}</td>
+                      <td className="py-4 px-4">{app.company}</td>
                       <td className="py-4 px-4">
                         <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#E8F0E5] text-[#2D4A22]">
-                          {app.status}
+                          {app.interviewStatus}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-sm text-[#6B5E4C]">
@@ -158,7 +151,6 @@ export default async function AdminDashboard() {
           </div>
         </section>
 
-        {/* User Management Section */}
         <UserManagementTable />
       </div>
     </div>

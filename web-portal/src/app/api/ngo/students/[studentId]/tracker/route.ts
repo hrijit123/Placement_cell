@@ -4,63 +4,103 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
-  const { studentId } = await params;
-  const session = await getServerSession(authOptions);
-  const role = (session as any)?.user?.role;
+  try {
+    const { studentId } = await params;
+    const session = await getServerSession(authOptions);
+    const role = (session as any)?.user?.role;
 
-  if (!session || (role !== "ADMIN" && role !== "TEACHER")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const { type, ...data } = await req.json();
+    const actor = await prisma.user.findUnique({ where: { email: session.user.email! }, include: { profile: true } });
+    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const profile = await prisma.profile.findUnique({
-    where: { studentId }
-  });
-
-  if (!profile) return NextResponse.json({ error: "Student not found" }, { status: 404 });
-
-  if (type === "CAREER") {
-    await prisma.careerPlacement.create({
-      data: {
-        userId: profile.userId,
-        company: data.company,
-        role: data.role,
-        salary: data.salary ? parseFloat(data.salary) : null,
-        startDate: new Date(data.startDate),
-        status: data.status,
-        nextMove: data.nextMove || null
-      }
-    });
-  }
-
-  if (type === "INTERVIEW") {
-    // We would need to link to a Job, but since staff is manually inputting, 
-    // maybe we just create a dummy Job or we have a custom table. 
-    // For simplicity, we can create a dummy job if it doesn't exist, or just rely on careerPlacement.
-    // The user's tracker specifically said "interviews sat in or reject, company they choose... career they make move".
-    // We can just log everything as career placement records or interview tracking.
-    // Let's create a dummy job for the application record.
-    const job = await prisma.job.create({
-      data: {
-        title: data.role,
-        company: data.company,
-        description: "Manual Tracker Entry",
-        location: "N/A",
-        recruiterId: (await prisma.user.findFirst({ where: { role: "ADMIN" } }))!.id,
-      }
+    const profile = await prisma.profile.findUnique({
+      where: { studentId },
+      include: { cohorts: true, user: true }
     });
 
-    await prisma.jobApplication.create({
+    if (!profile) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
+    // --- ACCESS CONTROL ---
+    if (role === "STUDENT") {
+      if (actor.profile?.studentId !== studentId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else if (role === "TEACHER") {
+      const teacherUser = await prisma.user.findUnique({
+        where: { id: actor.id },
+        include: { cohortsLed: true }
+      });
+      const teacherCohortIds = teacherUser?.cohortsLed.map(c => c.id) || [];
+      const studentCohortIds = profile.cohorts.map(c => c.id) || [];
+      const hasAccess = studentCohortIds.some(id => teacherCohortIds.includes(id));
+
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+    } else if (role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { recordType, company, role: jobRole, interviewStatus, placementStatus, salary, startDate, endDate, nextMove } = await req.json();
+
+    const verificationStatus = role === "STUDENT" ? "SELF_REPORTED" : "VERIFIED";
+
+    await prisma.careerRecord.create({
       data: {
-        studentId: profile.userId,
-        jobId: job.id,
-        status: data.status,
-        offeredSalary: data.salary ? parseFloat(data.salary) : null,
-        rejectionReason: data.rejectionReason || null
+        profileId: profile.id,
+        recordType,
+        company,
+        role: jobRole,
+        verification: verificationStatus,
+        interviewStatus: recordType === 'INTERVIEW' ? interviewStatus : null,
+        placementStatus: recordType === 'PLACEMENT' ? placementStatus : null,
+        salary: salary ? parseFloat(salary) : null,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        nextMove: nextMove || null
       }
     });
-  }
 
-  return NextResponse.json({ success: true });
+    // --- AUDIT LOGGING ---
+    await prisma.recordAuditLog.create({
+      data: {
+        profileId: profile.id,
+        actorId: actor.id,
+        action: "CREATE",
+        field: "Career Track Record",
+      }
+    });
+
+    // --- NOTIFICATIONS ---
+    if (role === "STUDENT") {
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+      const teacherIds = [...new Set(profile.cohorts.map(c => c.teacherId))];
+      
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: { recipientId: admin.id, profileId: profile.id, message: `Student ${profile.user.name || studentId} added a new Career Track record.` }
+        });
+      }
+      for (const tId of teacherIds) {
+        await prisma.notification.create({
+          data: { recipientId: tId, profileId: profile.id, message: `Student ${profile.user.name || studentId} added a new Career Track record.` }
+        });
+      }
+    } else {
+      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: { recipientId: admin.id, profileId: profile.id, message: `${role} ${actor.name || actor.email} added a Career Track record for ${profile.user.name || studentId}.` }
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Tracker update error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }

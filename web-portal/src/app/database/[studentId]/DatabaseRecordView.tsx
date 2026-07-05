@@ -1,6 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+
+const parseVerifiedField = (val: string | null) => {
+  if (!val) return { value: "", status: "NONE" };
+  try {
+    const parsed = JSON.parse(val);
+    if (parsed.value !== undefined && parsed.status) return parsed;
+    return { value: val, status: "NONE" };
+  } catch (e) {
+    return { value: val, status: "NONE" };
+  }
+};
+
+const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s: string) => void, role?: string }) => {
+  if (status === "VERIFIED") return <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800"><CheckCircle className="w-3 h-3"/> Verified</span>;
+  if (status === "SELF_REPORTED") return (
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800"><Clock className="w-3 h-3"/> Pending Verification</span>
+      {role !== "STUDENT" && onVerify && (
+        <>
+          <button onClick={() => onVerify("VERIFIED")} className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">Verify</button>
+          <button onClick={() => onVerify("REJECTED")} className="text-xs bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded">Reject</button>
+        </>
+      )}
+    </span>
+  );
+  if (status === "REJECTED") return <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800"><AlertCircle className="w-3 h-3"/> Rejected</span>;
+  return null;
+};
 
 export default function DatabaseRecordView({ studentId, role }: { studentId: string, role?: string }) {
   const [state, setState] = useState<any>({ status: "loading" });
@@ -9,20 +38,22 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
   const [editForm, setEditForm] = useState<any>({});
   
   const [trackerForm, setTrackerForm] = useState({
-    type: "INTERVIEW",
+    recordType: "INTERVIEW",
     company: "",
     role: "",
-    status: "APPLIED",
+    interviewStatus: "APPLIED",
+    placementStatus: "WORKING",
     salary: "",
     startDate: new Date().toISOString().split("T")[0],
-    rejectionReason: "",
     nextMove: ""
   });
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/ngo/students/${encodeURIComponent(studentId)}?full=true`);
+      // The API now expects ?overrideReason if we are a teacher out of cohort
+      const res = await fetch(`/api/ngo/students/${encodeURIComponent(studentId)}?full=true&overrideReason=Reviewing+Record`);
       const data = await res.json();
+      
       if (res.ok) {
         setState({ status: "success", data });
         setEditForm({
@@ -31,16 +62,19 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           languages: data.personalDetails.languages || "",
           hobbies: data.personalDetails.hobbies || "",
           vocation: data.personalDetails.vocation || "",
-          disabilityInfo: data.personalDetails.disabilityInfo || "",
+          disabilityInfo: data.personalDetails.disabilityInfo === '[REDACTED]' ? '' : (data.personalDetails.disabilityInfo || ""),
           skills: data.professionalBackground.skills || "",
-          education: data.professionalBackground.education || "",
+          education: parseVerifiedField(data.professionalBackground.education).value,
           experience: data.professionalBackground.experience || "",
           courseworks: data.professionalBackground.courseworks || "",
           internships: data.professionalBackground.internships || "",
-          certifications: data.professionalBackground.certifications || "",
+          certifications: parseVerifiedField(data.professionalBackground.certifications).value,
+          transcripts: parseVerifiedField(data.professionalBackground.transcripts).value,
+          expectedSalary: data.jobPreferences.expectedSalary === '[REDACTED]' ? '' : (data.jobPreferences.expectedSalary || ""),
+          availability: data.jobPreferences.availability || "",
         });
       } else {
-        setState({ status: "error", message: data.error });
+        setState({ status: "error", message: data.message || data.error });
       }
     } catch {
       setState({ status: "error", message: "Network error" });
@@ -66,7 +100,16 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(trackerForm)
     });
-    setTrackerForm({ ...trackerForm, company: "", role: "", salary: "", rejectionReason: "" });
+    setTrackerForm({ ...trackerForm, company: "", role: "", salary: "" });
+    load();
+  };
+
+  const verifyField = async (target: string, status: string, recordId?: string) => {
+    await fetch(`/api/ngo/students/${encodeURIComponent(studentId)}/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ target, status, recordId })
+    });
     load();
   };
 
@@ -74,6 +117,10 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
   if (state.status === "error") return <div className="min-h-screen p-10 bg-[#FDFBF7]">Error: {state.message}</div>;
 
   const d = state.data;
+  
+  const eduParsed = parseVerifiedField(d.professionalBackground.education);
+  const certParsed = parseVerifiedField(d.professionalBackground.certifications);
+  const transParsed = parseVerifiedField(d.professionalBackground.transcripts);
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
@@ -82,10 +129,17 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           <div>
             <h1 className="text-4xl font-serif text-[#2C241B]">{d.name || "Unknown Student"}</h1>
             <p className="text-[#6B5E4C] mt-1 font-mono text-sm">Universal ID: {d.studentId}</p>
+            {d.isRedacted && (
+              <p className="mt-2 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded inline-block border border-amber-200">
+                <AlertCircle className="w-3 h-3 inline mr-1" /> Out of Cohort View (Sensitive fields redacted)
+              </p>
+            )}
           </div>
-          <a href="/database" className="px-4 py-2 border border-[#E1D8C9] rounded text-sm hover:bg-white transition-colors">
-            Back to Search
-          </a>
+          {role !== "STUDENT" && (
+            <a href="/database" className="px-4 py-2 border border-[#E1D8C9] rounded text-sm hover:bg-white transition-colors">
+              Back to Search
+            </a>
+          )}
         </header>
 
         {/* Tabs */}
@@ -119,10 +173,24 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {Object.keys(editForm).map((key) => (
+              {/* Unverified / Free Text Fields */}
+              {[
+                { key: 'headline', label: 'Headline' },
+                { key: 'address', label: 'Address' },
+                { key: 'languages', label: 'Languages' },
+                { key: 'hobbies', label: 'Hobbies' },
+                { key: 'vocation', label: 'Vocation' },
+                { key: 'disabilityInfo', label: 'Accommodations / Disability Info' },
+                { key: 'skills', label: 'Skills' },
+                { key: 'experience', label: 'Experience' },
+                { key: 'courseworks', label: 'Courseworks' },
+                { key: 'internships', label: 'Internships' },
+                { key: 'expectedSalary', label: 'Expected Salary' },
+                { key: 'availability', label: 'Availability' }
+              ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}
+                    {label}
                   </label>
                   {isEditing ? (
                     <textarea 
@@ -131,12 +199,44 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                       className="w-full border border-[#E1D8C9] rounded p-2 text-[#3E362E] min-h-[60px]"
                     />
                   ) : (
-                    <div className="text-[#3E362E] min-h-[60px] p-2 bg-[#FAF8F3] rounded border border-transparent">
+                    <div className="text-[#3E362E] min-h-[60px] p-2 bg-[#FAF8F3] rounded border border-transparent whitespace-pre-wrap">
                       {editForm[key] || <span className="text-gray-400 italic">Not provided</span>}
                     </div>
                   )}
                 </div>
               ))}
+
+              {/* Verified Fields */}
+              <div className="md:col-span-2 border-t border-[#E1D8C9] pt-6 mt-4">
+                <h3 className="text-lg font-serif text-[#2C241B] mb-4">Official Records</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {[
+                    { key: 'education', label: 'Education', parsed: eduParsed },
+                    { key: 'certifications', label: 'Certifications', parsed: certParsed },
+                    { key: 'transcripts', label: 'Transcripts', parsed: transParsed },
+                  ].map(({ key, label, parsed }) => (
+                    <div key={key}>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#8B7D6B]">
+                          {label}
+                        </label>
+                        {!isEditing && <StatusBadge status={parsed.status} role={role} onVerify={(s) => verifyField(key, s)} />}
+                      </div>
+                      {isEditing ? (
+                        <textarea 
+                          value={editForm[key]} 
+                          onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                          className="w-full border border-[#E1D8C9] rounded p-2 text-[#3E362E] min-h-[60px]"
+                        />
+                      ) : (
+                        <div className="text-[#3E362E] min-h-[60px] p-2 bg-[#FAF8F3] rounded border border-transparent whitespace-pre-wrap">
+                          {parsed.value || <span className="text-gray-400 italic">Not provided</span>}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -144,17 +244,17 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
         {activeTab === "tracker" && (
           <div className="space-y-8">
             <form onSubmit={saveTracker} className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
-              <h2 className="text-xl font-serif text-[#2C241B] mb-4">Add Tracker Record</h2>
+              <h2 className="text-xl font-serif text-[#2C241B] mb-4">Add Timeline Event</h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Record Type</label>
+                  <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Event Type</label>
                   <select 
-                    value={trackerForm.type} 
-                    onChange={e => setTrackerForm({...trackerForm, type: e.target.value})}
+                    value={trackerForm.recordType} 
+                    onChange={e => setTrackerForm({...trackerForm, recordType: e.target.value})}
                     className="w-full border p-2 rounded"
                   >
                     <option value="INTERVIEW">Interview / Application</option>
-                    <option value="CAREER">Career Placement (Hired)</option>
+                    <option value="PLACEMENT">Career Placement (Hired)</option>
                   </select>
                 </div>
                 <div>
@@ -167,35 +267,30 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Status</label>
-                  <select value={trackerForm.status} onChange={e => setTrackerForm({...trackerForm, status: e.target.value})} className="w-full border p-2 rounded">
-                    {trackerForm.type === "INTERVIEW" ? (
-                      <>
-                        <option value="APPLIED">Applied</option>
-                        <option value="INTERVIEW_SCHEDULED">Interview Scheduled</option>
-                        <option value="INTERVIEW_ATTENDED">Interview Attended</option>
-                        <option value="REJECTED_BY_COMPANY">Rejected by Company</option>
-                        <option value="OFFER_REJECTED_BY_STUDENT">Offer Rejected by Student</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="WORKING">Working (Current)</option>
-                        <option value="RESIGNED">Resigned</option>
-                        <option value="TERMINATED">Terminated</option>
-                      </>
-                    )}
-                  </select>
+                  {trackerForm.recordType === "INTERVIEW" ? (
+                    <select value={trackerForm.interviewStatus} onChange={e => setTrackerForm({...trackerForm, interviewStatus: e.target.value})} className="w-full border p-2 rounded">
+                      <option value="APPLIED">Applied</option>
+                      <option value="SCHEDULED">Interview Scheduled</option>
+                      <option value="ATTENDED">Interview Attended</option>
+                      <option value="NO_SHOW">No Show</option>
+                      <option value="OFFER_EXTENDED">Offer Extended</option>
+                      <option value="OFFER_ACCEPTED">Offer Accepted</option>
+                      <option value="OFFER_REJECTED_BY_STUDENT">Offer Rejected by Student</option>
+                      <option value="REJECTED_BY_COMPANY">Rejected by Company</option>
+                    </select>
+                  ) : (
+                    <select value={trackerForm.placementStatus} onChange={e => setTrackerForm({...trackerForm, placementStatus: e.target.value})} className="w-full border p-2 rounded">
+                      <option value="WORKING">Working (Current)</option>
+                      <option value="RESIGNED">Resigned</option>
+                      <option value="TERMINATED">Terminated</option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Salary / Offer (Optional)</label>
                   <input type="number" value={trackerForm.salary} onChange={e => setTrackerForm({...trackerForm, salary: e.target.value})} className="w-full border p-2 rounded" />
                 </div>
-                {trackerForm.status.includes("REJECTED") && (
-                  <div>
-                    <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Rejection Reason</label>
-                    <input value={trackerForm.rejectionReason} onChange={e => setTrackerForm({...trackerForm, rejectionReason: e.target.value})} className="w-full border p-2 rounded" />
-                  </div>
-                )}
-                {trackerForm.type === "CAREER" && trackerForm.status !== "WORKING" && (
+                {trackerForm.recordType === "PLACEMENT" && trackerForm.placementStatus !== "WORKING" && (
                   <div>
                     <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Next Move (Where are they now?)</label>
                     <input value={trackerForm.nextMove} onChange={e => setTrackerForm({...trackerForm, nextMove: e.target.value})} className="w-full border p-2 rounded" />
@@ -208,27 +303,49 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
             </form>
 
             <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
-              <h2 className="text-xl font-serif text-[#2C241B] mb-4">Historical Tracker</h2>
+              <h2 className="text-xl font-serif text-[#2C241B] mb-6">Career Timeline</h2>
               
-              <h3 className="text-sm font-semibold uppercase text-[#8B7D6B] mb-2 mt-6">Interviews & Applications</h3>
-              <table className="w-full text-left text-sm">
-                <thead><tr className="bg-[#FAF8F3]"><th className="p-2">Role</th><th className="p-2">Company</th><th className="p-2">Status</th><th className="p-2">Rejection Reason</th></tr></thead>
-                <tbody>
-                  {d.jobApplications.map((app: any) => (
-                    <tr key={app.id} className="border-b"><td className="p-2">{app.jobTitle}</td><td className="p-2">{app.company}</td><td className="p-2">{app.status}</td><td className="p-2">{app.rejectionReason || "—"}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-
-              <h3 className="text-sm font-semibold uppercase text-[#8B7D6B] mb-2 mt-8">Career Placements</h3>
-              <table className="w-full text-left text-sm">
-                <thead><tr className="bg-[#FAF8F3]"><th className="p-2">Role</th><th className="p-2">Company</th><th className="p-2">Status</th><th className="p-2">Next Move</th></tr></thead>
-                <tbody>
-                  {d.careerHistory.map((c: any) => (
-                    <tr key={c.id} className="border-b"><td className="p-2">{c.role}</td><td className="p-2">{c.company}</td><td className="p-2">{c.status}</td><td className="p-2">{c.nextMove || "—"}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="relative border-l border-stone-200 ml-4 space-y-8 pb-4">
+                {d.careerTrack?.length === 0 ? (
+                  <p className="ml-6 text-stone-500">No career records found.</p>
+                ) : d.careerTrack?.map((ct: any) => (
+                  <div key={ct.id} className="relative ml-6">
+                    <span className="absolute -left-[33px] top-1 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white"></span>
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-semibold text-stone-800 text-lg">{ct.role} <span className="font-normal text-stone-500">at</span> {ct.company}</h3>
+                        <p className="text-sm text-stone-500">{new Date(ct.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <StatusBadge status={ct.verification} role={role} onVerify={(s) => verifyField("careerTrack", s, ct.id)} />
+                    </div>
+                    
+                    <div className="bg-[#FAF8F3] p-4 rounded border border-[#E1D8C9] mt-2">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-stone-500 uppercase text-xs font-semibold tracking-wider block">Type</span>
+                          {ct.recordType}
+                        </div>
+                        <div>
+                          <span className="text-stone-500 uppercase text-xs font-semibold tracking-wider block">Status</span>
+                          <span className="font-medium text-stone-800">{ct.recordType === 'INTERVIEW' ? ct.interviewStatus : ct.placementStatus}</span>
+                        </div>
+                        {ct.salary && (
+                          <div>
+                            <span className="text-stone-500 uppercase text-xs font-semibold tracking-wider block">Salary</span>
+                            {ct.salary}
+                          </div>
+                        )}
+                        {ct.nextMove && (
+                          <div className="col-span-2">
+                            <span className="text-stone-500 uppercase text-xs font-semibold tracking-wider block">Next Move</span>
+                            {ct.nextMove}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

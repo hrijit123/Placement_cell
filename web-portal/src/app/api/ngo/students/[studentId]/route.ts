@@ -4,14 +4,11 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { z } from 'zod';
 
-// Zod schema for input validation
-// Assuming studentId is an alphanumeric NGO ID string, not necessarily a UUID
 const StudentIdSchema = z.string().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/);
 
-// In-Memory Token Bucket for Rate Limiting (Basic protection against scraping)
 const rateLimitCache = new Map<string, { count: number, resetTime: number }>();
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 10; // Max 10 dossier fetches per minute per user
+const RATE_LIMIT_WINDOW_MS = 60000;
+const MAX_REQUESTS_PER_WINDOW = 10;
 
 export async function GET(
   request: Request,
@@ -24,10 +21,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { studentId } = await params;
+    const url = new URL(request.url);
+    const isFullHistory = url.searchParams.get('full') === 'true';
+    const overrideReason = url.searchParams.get('overrideReason');
+
     const role = (session.user as any).role;
-    if (role !== 'ADMIN' && role !== 'TEACHER') {
-      return NextResponse.json({ error: 'Forbidden: Insufficient privileges' }, { status: 403 });
-    }
     
     // --- RATE LIMITING ---
     const userEmail = session.user.email || 'anonymous';
@@ -45,14 +44,10 @@ export async function GET(
     }
 
     // --- INPUT VALIDATION ---
-    const { studentId } = await params;
     const validation = StudentIdSchema.safeParse(studentId);
     if (!validation.success) {
       return NextResponse.json({ error: 'Invalid Student ID format' }, { status: 400 });
     }
-    
-    const url = new URL(request.url);
-    const isFullHistory = url.searchParams.get('full') === 'true';
 
     // Fetch the target student's profile
     const studentProfile = await prisma.profile.findUnique({
@@ -60,21 +55,17 @@ export async function GET(
       include: {
         user: {
           include: {
-            applications: {
-              include: { job: true },
-              orderBy: { createdAt: 'desc' }
-            },
-            careerHistory: { 
-              orderBy: { startDate: 'desc' },
-              take: isFullHistory ? undefined : 5
-            },
             attendance: { 
               orderBy: { date: 'desc' },
               take: isFullHistory ? undefined : 5
             }
           }
         },
-        cohorts: true
+        cohorts: true,
+        careerTrack: {
+          orderBy: { createdAt: 'desc' },
+          take: isFullHistory ? undefined : 20
+        }
       }
     });
 
@@ -82,14 +73,20 @@ export async function GET(
       return NextResponse.json({ error: 'Student not found' }, { status: 404 });
     }
 
-    // --- COHORT SCOPING & REDACTION FOR TEACHERS ---
+    // --- ACCESS CONTROL & SCOPING ---
+    const viewerUser = await prisma.user.findUnique({ where: { email: session.user.email! }, include: { profile: true } });
+    if (!viewerUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     let isRedacted = false;
-    
-    if (role === 'TEACHER') {
-      isRedacted = true;
-      // Fetch the teacher's DB user to check their cohorts
+    let isOutOfCohort = false;
+
+    if (role === 'STUDENT') {
+      if (viewerUser.profile?.studentId !== studentId) {
+        return NextResponse.json({ error: 'Forbidden: Can only view your own profile' }, { status: 403 });
+      }
+    } else if (role === 'TEACHER') {
       const teacherUser = await prisma.user.findUnique({
-        where: { email: session.user.email! },
+        where: { id: viewerUser.id },
         include: { cohortsLed: true }
       });
       
@@ -97,21 +94,40 @@ export async function GET(
       const studentCohortIds = studentProfile.cohorts.map(c => c.id);
       
       const hasAccess = studentCohortIds.some(id => teacherCohortIds.includes(id));
+      
       if (!hasAccess) {
-        return NextResponse.json({ error: 'Forbidden: Student is not in your assigned cohorts' }, { status: 403 });
+        if (!overrideReason) {
+          return NextResponse.json({ error: 'OUT_OF_COHORT', message: 'Student is outside your cohort. Provide an override reason to access.' }, { status: 403 });
+        }
+        isOutOfCohort = true;
+        isRedacted = true; // Redact salary and disability info when out of cohort
       }
     }
 
     // --- AUDIT LOGGING ---
-    const viewerUser = await prisma.user.findUnique({ where: { email: session.user.email! } });
-    if (viewerUser) {
-      await prisma.dossierAccessLog.create({
+    if (role !== 'STUDENT') {
+      await prisma.accessLog.create({
         data: {
-          viewerId: viewerUser.id,
-          studentId: studentProfile.studentId || "unknown",
-          reason: `Accessed dossier (full=${isFullHistory})`
+          actorId: viewerUser.id,
+          targetStudentId: studentProfile.studentId || "unknown",
+          isOutOfCohort,
+          reason: isOutOfCohort ? overrideReason : 'Standard access'
         }
       });
+      
+      if (isOutOfCohort) {
+        // Send notification to ADMIN
+        const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+        for (const admin of admins) {
+          await prisma.notification.create({
+            data: {
+              recipientId: admin.id,
+              profileId: studentProfile.id,
+              message: `Teacher ${viewerUser.name || viewerUser.email} performed an out-of-cohort lookup for student ${studentProfile.user.name || studentProfile.studentId}. Reason: ${overrideReason}`
+            }
+          });
+        }
+      }
     }
 
     // --- BUILD DOSSIER PAYLOAD ---
@@ -127,7 +143,6 @@ export async function GET(
         languages: studentProfile.languages,
         hobbies: studentProfile.hobbies,
         vocation: studentProfile.vocation,
-        // Redact highly sensitive info if Teacher
         disabilityInfo: isRedacted ? '[REDACTED]' : studentProfile.disabilityInfo
       },
       professionalBackground: {
@@ -136,30 +151,26 @@ export async function GET(
         education: studentProfile.education,
         courseworks: studentProfile.courseworks,
         internships: studentProfile.internships,
-        certifications: studentProfile.certifications
+        certifications: studentProfile.certifications,
+        transcripts: studentProfile.transcripts
       },
       jobPreferences: {
         expectedSalary: isRedacted ? '[REDACTED]' : studentProfile.expectedSalary,
         availability: studentProfile.availability
       },
-      jobApplications: studentProfile.user.applications.map((app: any) => ({
-        id: app.id,
-        jobTitle: app.job.title,
-        company: app.job.company,
-        status: app.status,
-        offeredSalary: isRedacted ? null : app.offeredSalary,
-        rejectionReason: isRedacted ? '[REDACTED]' : app.rejectionReason,
-        appliedAt: app.createdAt
-      })),
-      careerHistory: studentProfile.user.careerHistory.map((history: any) => ({
-        id: history.id,
-        company: history.company,
-        role: history.role,
-        salary: isRedacted ? null : history.salary,
-        startDate: history.startDate,
-        endDate: history.endDate,
-        status: history.status,
-        nextMove: history.nextMove
+      careerTrack: studentProfile.careerTrack.map(ct => ({
+        id: ct.id,
+        recordType: ct.recordType,
+        company: ct.company,
+        role: ct.role,
+        verification: ct.verification,
+        interviewStatus: ct.interviewStatus,
+        placementStatus: ct.placementStatus,
+        salary: isRedacted ? null : ct.salary,
+        startDate: ct.startDate,
+        endDate: ct.endDate,
+        nextMove: ct.nextMove,
+        createdAt: ct.createdAt
       })),
       attendance: studentProfile.user.attendance.map((att: any) => ({
         id: att.id,
