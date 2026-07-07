@@ -2,6 +2,26 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const TrackerSchema = z.object({
+  recordType: z.enum(["INTERVIEW", "PLACEMENT"]),
+  company: z.string().min(1).max(200),
+  role: z.string().min(1).max(200),
+  interviewStatus: z.enum([
+    "APPLIED", "SCHEDULED", "ATTENDED", "NO_SHOW",
+    "OFFER_EXTENDED", "OFFER_ACCEPTED", "OFFER_REJECTED_BY_STUDENT", "REJECTED_BY_COMPANY"
+  ]).optional(),
+  placementStatus: z.enum(["WORKING", "RESIGNED", "TERMINATED"]).optional(),
+  // The form sends "" when no salary is entered — treat that as absent, not 0.
+  salary: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : Number(v)),
+    z.number().nonnegative().optional()
+  ),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  nextMove: z.string().max(500).optional(),
+});
 
 export async function POST(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
   try {
@@ -44,7 +64,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { recordType, company, role: jobRole, interviewStatus, placementStatus, salary, startDate, endDate, nextMove } = await req.json();
+    const parsedBody = TrackerSchema.safeParse(await req.json());
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid tracker payload" }, { status: 400 });
+    }
+    const { recordType, company, role: jobRole, interviewStatus, placementStatus, salary, startDate, endDate, nextMove } = parsedBody.data;
 
     const verificationStatus = role === "STUDENT" ? "SELF_REPORTED" : "VERIFIED";
 
@@ -55,9 +79,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
         company,
         role: jobRole,
         verification: verificationStatus,
-        interviewStatus: recordType === 'INTERVIEW' ? interviewStatus : null,
-        placementStatus: recordType === 'PLACEMENT' ? placementStatus : null,
-        salary: salary ? parseFloat(salary) : null,
+        interviewStatus: recordType === 'INTERVIEW' ? (interviewStatus ?? 'APPLIED') : null,
+        placementStatus: recordType === 'PLACEMENT' ? (placementStatus ?? 'WORKING') : null,
+        salary: salary ?? null,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         nextMove: nextMove || null

@@ -36,7 +36,8 @@ export const authOptions: NextAuthOptions = {
     }
   },
   pages: {
-    signIn: '/login'
+    // The landing page hosts the role-portal sign-in UI; /login does not exist.
+    signIn: '/'
   }
 }
 

@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const VerifySchema = z.object({
+  target: z.enum(["education", "certifications", "transcripts", "careerTrack"]),
+  status: z.enum(["VERIFIED", "REJECTED"]),
+  recordId: z.string().optional(),
+});
 
 export async function POST(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
   try {
@@ -44,17 +51,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { target, status, recordId } = await req.json(); 
-    // target can be 'education', 'certifications', 'transcripts', or 'careerTrack'
-    // status can be 'VERIFIED' or 'REJECTED'
+    const parsedBody = VerifySchema.safeParse(await req.json());
+    if (!parsedBody.success) {
+      return NextResponse.json({ error: "Invalid verification payload" }, { status: 400 });
+    }
+    const { target, status, recordId } = parsedBody.data;
 
     if (target === 'careerTrack') {
       if (!recordId) return NextResponse.json({ error: "Missing recordId for careerTrack verification" }, { status: 400 });
-      await prisma.careerRecord.update({
-        where: { id: recordId },
+      // Scope the update to this student's profile so a recordId belonging
+      // to another student cannot be verified through this route (IDOR).
+      const updated = await prisma.careerRecord.updateMany({
+        where: { id: recordId, profileId: profile.id },
         data: { verification: status }
       });
-    } else if (['education', 'certifications', 'transcripts'].includes(target)) {
+      if (updated.count === 0) {
+        return NextResponse.json({ error: "Record not found for this student" }, { status: 404 });
+      }
+    } else {
       // Need to parse existing JSON string and update status
       const currentValue = profile[target as keyof typeof profile] as string | null;
       if (currentValue) {
@@ -69,8 +83,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
           return NextResponse.json({ error: `Failed to parse existing ${target} JSON` }, { status: 500 });
         }
       }
-    } else {
-      return NextResponse.json({ error: "Invalid target for verification" }, { status: 400 });
     }
 
     // --- AUDIT LOGGING ---

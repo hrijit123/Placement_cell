@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const data = await req.json();
     const { name, headline, education, experience, skills } = data;
+    if (typeof name !== "string" || !name.trim()) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
 
     // Escape LaTeX special characters
     const escapeLatex = (str: string) => {
