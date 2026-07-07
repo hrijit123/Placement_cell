@@ -21,8 +21,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] font-sans selection:bg-[#2D4A22] selection:text-white flex flex-col items-center justify-center p-6">
       <div className="text-center mb-16">
-        <h1 className="text-5xl md:text-7xl font-serif text-[#2C241B] font-semibold tracking-tight mb-4">ISL Connect</h1>
-        <p className="text-xl text-[#6B5E4C]">Placement Cell & Student Tracking Portal</p>
+        <h1 className="text-5xl md:text-7xl font-serif text-[#2C241B] font-semibold tracking-tight mb-4">Placement Tracker</h1>
+        <p className="text-xl text-[#6B5E4C]">Empowering Specially Abled</p>
       </div>
 
       {session ? (
