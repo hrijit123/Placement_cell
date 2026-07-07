@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, Plus, Trash2, Upload, ExternalLink } from "lucide-react";
 
 const parseVerifiedField = (val: string | null) => {
   if (!val) return { value: "", status: "NONE" };
@@ -12,6 +12,21 @@ const parseVerifiedField = (val: string | null) => {
   } catch (e) {
     return { value: val, status: "NONE" };
   }
+};
+
+const parseList = (val: any) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const arr = JSON.parse(val);
+      if (Array.isArray(arr)) return arr;
+      return [{ name: val }];
+    } catch {
+      return [{ name: val }];
+    }
+  }
+  return [];
 };
 
 const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s: string) => void, role?: string }) => {
@@ -31,12 +46,46 @@ const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s
   return null;
 };
 
+const FileUploader = ({ onUpload, label }: { onUpload: (url: string) => void, label: string }) => {
+  const [uploading, setUploading] = useState(false);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    setUploading(true);
+    try {
+      const res = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}`, {
+        method: "POST",
+        body: file,
+      });
+      const data = await res.json();
+      if (data.url) onUpload(data.url);
+      else alert("Upload failed");
+    } catch (err) {
+      alert("Error uploading file");
+    }
+    setUploading(false);
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <label className="cursor-pointer bg-stone-200 hover:bg-stone-300 text-stone-800 px-3 py-1 rounded text-xs font-semibold flex items-center gap-1">
+        <Upload className="w-3 h-3" />
+        {uploading ? "Uploading..." : label}
+        <input type="file" className="hidden" accept=".pdf" onChange={handleFileChange} disabled={uploading} />
+      </label>
+    </div>
+  );
+};
+
 export default function DatabaseRecordView({ studentId, role }: { studentId: string, role?: string }) {
   const [state, setState] = useState<any>({ status: "loading" });
   const [activeTab, setActiveTab] = useState<"transcripts" | "tracker">("transcripts");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   
+  const [educationList, setEducationList] = useState<any[]>([]);
+  const [certList, setCertList] = useState<any[]>([]);
+  const [courseworkList, setCourseworkList] = useState<any[]>([]);
+
   const [trackerForm, setTrackerForm] = useState({
     recordType: "INTERVIEW",
     company: "",
@@ -50,12 +99,19 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
 
   const load = useCallback(async () => {
     try {
-      // The API now expects ?overrideReason if we are a teacher out of cohort
       const res = await fetch(`/api/ngo/students/${encodeURIComponent(studentId)}?full=true&overrideReason=Reviewing+Record`);
       const data = await res.json();
       
       if (res.ok) {
         setState({ status: "success", data });
+        
+        const parsedEdu = parseVerifiedField(data.professionalBackground.education);
+        const parsedCert = parseVerifiedField(data.professionalBackground.certifications);
+        
+        setEducationList(parseList(parsedEdu.value));
+        setCertList(parseList(parsedCert.value));
+        setCourseworkList(parseList(data.professionalBackground.courseworks));
+
         setEditForm({
           headline: data.personalDetails.headline || "",
           address: data.personalDetails.address || "",
@@ -64,12 +120,8 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           vocation: data.personalDetails.vocation || "",
           disabilityInfo: data.personalDetails.disabilityInfo === '[REDACTED]' ? '' : (data.personalDetails.disabilityInfo || ""),
           skills: data.professionalBackground.skills || "",
-          education: parseVerifiedField(data.professionalBackground.education).value,
           experience: data.professionalBackground.experience || "",
-          courseworks: data.professionalBackground.courseworks || "",
           internships: data.professionalBackground.internships || "",
-          certifications: parseVerifiedField(data.professionalBackground.certifications).value,
-          transcripts: parseVerifiedField(data.professionalBackground.transcripts).value,
           expectedSalary: data.jobPreferences.expectedSalary === '[REDACTED]' ? '' : (data.jobPreferences.expectedSalary || ""),
           availability: data.jobPreferences.availability || "",
         });
@@ -84,10 +136,16 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
   useEffect(() => { load(); }, [load]);
 
   const saveTranscripts = async () => {
+    const finalForm = {
+      ...editForm,
+      education: JSON.stringify(educationList),
+      certifications: JSON.stringify(certList),
+      courseworks: JSON.stringify(courseworkList)
+    };
     await fetch(`/api/ngo/students/${encodeURIComponent(studentId)}/update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editForm)
+      body: JSON.stringify(finalForm)
     });
     setIsEditing(false);
     load();
@@ -117,10 +175,8 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
   if (state.status === "error") return <div className="min-h-screen p-10 bg-[#FDFBF7]">Error: {state.message}</div>;
 
   const d = state.data;
-  
-  const eduParsed = parseVerifiedField(d.professionalBackground.education);
-  const certParsed = parseVerifiedField(d.professionalBackground.certifications);
-  const transParsed = parseVerifiedField(d.professionalBackground.transcripts);
+  const eduParsedStatus = parseVerifiedField(d.professionalBackground.education).status;
+  const certParsedStatus = parseVerifiedField(d.professionalBackground.certifications).status;
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
@@ -142,7 +198,6 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           )}
         </header>
 
-        {/* Tabs */}
         <div className="flex gap-4 mb-8 border-b border-[#E1D8C9]">
           <button 
             onClick={() => setActiveTab("transcripts")}
@@ -159,8 +214,8 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
         </div>
 
         {activeTab === "transcripts" && (
-          <div className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9]">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9] space-y-8">
+            <div className="flex justify-between items-center pb-6 border-b border-[#E1D8C9]">
               <h2 className="text-2xl font-serif text-[#2C241B]">Student Database Record</h2>
               <button 
                 onClick={() => isEditing ? saveTranscripts() : setIsEditing(true)}
@@ -171,7 +226,6 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Unverified / Free Text Fields */}
               {[
                 { key: 'headline', label: 'Headline' },
                 { key: 'address', label: 'Address' },
@@ -181,7 +235,6 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                 { key: 'disabilityInfo', label: 'Accommodations / Disability Info' },
                 { key: 'skills', label: 'Skills' },
                 { key: 'experience', label: 'Experience' },
-                { key: 'courseworks', label: 'Courseworks' },
                 { key: 'internships', label: 'Internships' },
                 { key: 'expectedSalary', label: 'Expected Salary' },
                 { key: 'availability', label: 'Availability' }
@@ -203,42 +256,152 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                   )}
                 </div>
               ))}
+            </div>
 
-              {/* Verified Fields */}
-              <div className="md:col-span-2 border-t border-[#E1D8C9] pt-6 mt-4">
-                <h3 className="text-lg font-serif text-[#2C241B] mb-4">Official Records</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {[
-                    { key: 'education', label: 'Education', parsed: eduParsed },
-                    { key: 'certifications', label: 'Certifications', parsed: certParsed },
-                    { key: 'transcripts', label: 'Transcripts', parsed: transParsed },
-                  ].map(({ key, label, parsed }) => (
-                    <div key={key}>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-[#8B7D6B]">
-                          {label}
-                        </label>
-                        {!isEditing && <StatusBadge status={parsed.status} role={role} onVerify={(s) => verifyField(key, s)} />}
-                      </div>
-                      {isEditing ? (
-                        <textarea 
-                          value={editForm[key]} 
-                          onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
-                          className="w-full border border-[#E1D8C9] rounded p-2 text-[#3E362E] min-h-[60px]"
-                        />
-                      ) : (
-                        <div className="text-[#3E362E] min-h-[60px] p-2 bg-[#FAF8F3] rounded border border-transparent whitespace-pre-wrap">
-                          {parsed.value || <span className="text-gray-400 italic">Not provided</span>}
-                        </div>
+            {/* Structured Fields Section */}
+            <div className="border-t border-[#E1D8C9] pt-8 space-y-8">
+              
+              {/* EDUCATION */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-serif text-[#2C241B]">Education</h3>
+                  {!isEditing && <StatusBadge status={eduParsedStatus} role={role} onVerify={(s) => verifyField("education", s)} />}
+                </div>
+                
+                <div className="space-y-4">
+                  {educationList.length === 0 && !isEditing && <p className="text-stone-400 italic">No education records provided.</p>}
+                  {educationList.map((edu, idx) => (
+                    <div key={idx} className="p-4 border border-[#E1D8C9] rounded bg-[#FAF8F3] relative">
+                      {isEditing && (
+                        <button onClick={() => setEducationList(educationList.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
                       )}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="text-xs font-semibold text-stone-500">Institution Name</label>
+                          {isEditing ? (
+                            <input value={edu.institution || edu.name || ""} onChange={e => { const n = [...educationList]; n[idx].institution = e.target.value; setEducationList(n); }} className="w-full border p-1 rounded" />
+                          ) : <p className="font-semibold text-stone-800">{edu.institution || edu.name || "-"}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-stone-500">Degree / Standard</label>
+                          {isEditing ? <input value={edu.degree || ""} onChange={e => { const n = [...educationList]; n[idx].degree = e.target.value; setEducationList(n); }} className="w-full border p-1 rounded" /> : <p>{edu.degree || "-"}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-stone-500">Duration</label>
+                          {isEditing ? <input value={edu.duration || ""} onChange={e => { const n = [...educationList]; n[idx].duration = e.target.value; setEducationList(n); }} className="w-full border p-1 rounded" placeholder="e.g. 2018 - 2022" /> : <p>{edu.duration || "-"}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-stone-500">Marks / CGPA</label>
+                          {isEditing ? <input value={edu.marks || ""} onChange={e => { const n = [...educationList]; n[idx].marks = e.target.value; setEducationList(n); }} className="w-full border p-1 rounded" /> : <p>{edu.marks || "-"}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-stone-500 mb-1 block">Transcript PDF</label>
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              {edu.url ? <a href={edu.url} target="_blank" rel="noreferrer" className="text-emerald-600 underline text-sm">View File</a> : <span className="text-stone-400 text-sm">No file</span>}
+                              <FileUploader label="Upload PDF" onUpload={(url) => { const n = [...educationList]; n[idx].url = url; setEducationList(n); }} />
+                            </div>
+                          ) : (
+                            edu.url ? <a href={edu.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#2D4A22] font-semibold text-sm hover:underline"><ExternalLink className="w-4 h-4"/> View Transcript</a> : <p className="text-stone-500 text-sm">Not provided</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ))}
+                  {isEditing && (
+                    <button onClick={() => setEducationList([...educationList, {}])} className="w-full py-3 border-2 border-dashed border-[#E1D8C9] text-stone-500 font-semibold rounded hover:bg-stone-50 hover:text-stone-800 transition-colors flex items-center justify-center gap-2">
+                      <Plus className="w-5 h-5"/> Add Education
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {/* COURSEWORKS */}
+              <div>
+                <h3 className="text-xl font-serif text-[#2C241B] mb-4">Coursework</h3>
+                <div className="space-y-4">
+                  {courseworkList.length === 0 && !isEditing && <p className="text-stone-400 italic">No coursework records provided.</p>}
+                  {courseworkList.map((course, idx) => (
+                    <div key={idx} className="p-4 border border-[#E1D8C9] rounded bg-[#FAF8F3] relative">
+                      {isEditing && (
+                        <button onClick={() => setCourseworkList(courseworkList.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      )}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="text-xs font-semibold text-stone-500">Course Name</label>
+                          {isEditing ? <input value={course.name || ""} onChange={e => { const n = [...courseworkList]; n[idx].name = e.target.value; setCourseworkList(n); }} className="w-full border p-1 rounded" /> : <p className="font-semibold text-stone-800">{course.name || "-"}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {isEditing && (
+                    <button onClick={() => setCourseworkList([...courseworkList, {}])} className="w-full py-3 border-2 border-dashed border-[#E1D8C9] text-stone-500 font-semibold rounded hover:bg-stone-50 hover:text-stone-800 transition-colors flex items-center justify-center gap-2">
+                      <Plus className="w-5 h-5"/> Add Coursework
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* CERTIFICATIONS */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-serif text-[#2C241B]">Certifications</h3>
+                  {!isEditing && <StatusBadge status={certParsedStatus} role={role} onVerify={(s) => verifyField("certifications", s)} />}
+                </div>
+                
+                <div className="space-y-4">
+                  {certList.length === 0 && !isEditing && <p className="text-stone-400 italic">No certifications provided.</p>}
+                  {certList.map((cert, idx) => (
+                    <div key={idx} className="p-4 border border-[#E1D8C9] rounded bg-[#FAF8F3] relative">
+                      {isEditing && (
+                        <button onClick={() => setCertList(certList.filter((_, i) => i !== idx))} className="absolute top-4 right-4 text-red-500 hover:text-red-700">
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      )}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="text-xs font-semibold text-stone-500">Certificate Name</label>
+                          {isEditing ? <input value={cert.name || ""} onChange={e => { const n = [...certList]; n[idx].name = e.target.value; setCertList(n); }} className="w-full border p-1 rounded" /> : <p className="font-semibold text-stone-800">{cert.name || "-"}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-stone-500">Issuing Organization</label>
+                          {isEditing ? <input value={cert.organization || ""} onChange={e => { const n = [...certList]; n[idx].organization = e.target.value; setCertList(n); }} className="w-full border p-1 rounded" /> : <p>{cert.organization || "-"}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-stone-500">Year</label>
+                          {isEditing ? <input value={cert.year || ""} onChange={e => { const n = [...certList]; n[idx].year = e.target.value; setCertList(n); }} className="w-full border p-1 rounded" /> : <p>{cert.year || "-"}</p>}
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-xs font-semibold text-stone-500 mb-1 block">Certificate PDF</label>
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              {cert.url ? <a href={cert.url} target="_blank" rel="noreferrer" className="text-emerald-600 underline text-sm">View File</a> : <span className="text-stone-400 text-sm">No file</span>}
+                              <FileUploader label="Upload PDF" onUpload={(url) => { const n = [...certList]; n[idx].url = url; setCertList(n); }} />
+                            </div>
+                          ) : (
+                            cert.url ? <a href={cert.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#2D4A22] font-semibold text-sm hover:underline"><ExternalLink className="w-4 h-4"/> View Certificate</a> : <p className="text-stone-500 text-sm">Not provided</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {isEditing && (
+                    <button onClick={() => setCertList([...certList, {}])} className="w-full py-3 border-2 border-dashed border-[#E1D8C9] text-stone-500 font-semibold rounded hover:bg-stone-50 hover:text-stone-800 transition-colors flex items-center justify-center gap-2">
+                      <Plus className="w-5 h-5"/> Add Certification
+                    </button>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
         )}
 
+        {/* TRACKER TAB REMAINS THE SAME */}
         {activeTab === "tracker" && (
           <div className="space-y-8">
             <form onSubmit={saveTracker} className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
