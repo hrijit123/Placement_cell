@@ -8,12 +8,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing role or pin" }, { status: 400 });
     }
 
+    const validTeacherPin = process.env.TEACHER_PIN || "teacher123";
+    const validAdminPin = process.env.ADMIN_PIN || "admin123";
+
     if (role === "TEACHER") {
-      if (pin === process.env.TEACHER_PIN) {
+      if (pin === validTeacherPin) {
         return NextResponse.json({ success: true });
       }
     } else if (role === "ADMIN") {
-      if (pin === process.env.ADMIN_PIN) {
+      if (pin === validAdminPin) {
         return NextResponse.json({ success: true });
       }
     }
