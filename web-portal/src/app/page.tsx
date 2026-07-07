@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
   if (status === "loading") {
     return <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">Loading...</div>;
@@ -35,11 +37,31 @@ export default function Home() {
             Go to My Dashboard
           </button>
         </div>
+      ) : selectedRole ? (
+        <div className="flex flex-col items-center bg-white p-12 rounded-2xl shadow-sm border border-[#E1D8C9] max-w-md w-full">
+          <h2 className="text-3xl font-serif font-semibold text-[#2C241B] mb-2">{selectedRole} Portal</h2>
+          <p className="text-[#6B5E4C] mb-8 text-center">Sign in to access your {selectedRole.toLowerCase()} dashboard and records.</p>
+          
+          <button
+            onClick={() => signIn("google", { callbackUrl: `/router?role=${selectedRole}` })}
+            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-4 rounded-xl font-medium transition-all shadow-sm mb-4"
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-6 h-6" />
+            Continue with Google
+          </button>
+          
+          <button
+            onClick={() => setSelectedRole(null)}
+            className="text-[#8B7D6B] hover:text-[#2C241B] text-sm underline underline-offset-4 font-medium transition-colors"
+          >
+            Go back
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
           {/* Admin Login */}
           <div 
-            onClick={() => signIn("google", { callbackUrl: "/router?role=ADMIN" })}
+            onClick={() => setSelectedRole("ADMIN")}
             className="group cursor-pointer bg-white border border-[#E1D8C9] rounded-xl p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-[#2D4A22] transition-all duration-300"
           >
             <div className="w-20 h-20 bg-[#FAF8F3] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#2D4A22] group-hover:text-white transition-colors duration-300">
@@ -53,7 +75,7 @@ export default function Home() {
 
           {/* Teacher Login */}
           <div 
-            onClick={() => signIn("google", { callbackUrl: "/router?role=TEACHER" })}
+            onClick={() => setSelectedRole("TEACHER")}
             className="group cursor-pointer bg-white border border-[#E1D8C9] rounded-xl p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-[#2C241B] transition-all duration-300"
           >
             <div className="w-20 h-20 bg-[#FAF8F3] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#2C241B] group-hover:text-white transition-colors duration-300">
@@ -67,7 +89,7 @@ export default function Home() {
 
           {/* Student Login */}
           <div 
-            onClick={() => signIn("google", { callbackUrl: "/router?role=STUDENT" })}
+            onClick={() => setSelectedRole("STUDENT")}
             className="group cursor-pointer bg-white border border-[#E1D8C9] rounded-xl p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-[#8B7D6B] transition-all duration-300"
           >
             <div className="w-20 h-20 bg-[#FAF8F3] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#8B7D6B] group-hover:text-white transition-colors duration-300">
