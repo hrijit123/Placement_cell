@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import UserManagementTable from "./UserManagementTable"
 import ChartsSection from "./ChartsSection"
+import AuditLogsTable from "./AuditLogsTable"
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions)
@@ -11,7 +12,7 @@ export default async function AdminDashboard() {
   const adminUser = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!adminUser || adminUser.role !== 'ADMIN' || adminUser.status !== 'ACTIVE') redirect('/')
 
-  const [totalUsers, totalStudents, totalRecruiters, totalJobs, totalApplications, recentApplications] = await Promise.all([
+  const [totalUsers, totalStudents, totalRecruiters, totalJobs, totalApplications, recentApplications, auditLogs] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: 'STUDENT' } }),
     prisma.user.count({ where: { role: 'RECRUITER' } }),
@@ -22,6 +23,14 @@ export default async function AdminDashboard() {
       where: { recordType: 'INTERVIEW' },
       orderBy: { createdAt: 'desc' },
       include: {
+        profile: { include: { user: true } }
+      }
+    }),
+    prisma.recordAuditLog.findMany({
+      take: 50,
+      orderBy: { timestamp: 'desc' },
+      include: {
+        actor: true,
         profile: { include: { user: true } }
       }
     })
@@ -152,6 +161,7 @@ export default async function AdminDashboard() {
         </section>
 
         <UserManagementTable />
+        <AuditLogsTable logs={auditLogs} />
       </div>
     </div>
   )
