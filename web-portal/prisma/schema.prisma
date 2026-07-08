@@ -85,9 +85,9 @@ model User {
   notifications    Notification[]     @relation("UserNotifications")
   auditLogs        RecordAuditLog[]   @relation("UserAuditLogs")
 
-  teacherProfile TeacherProfile?
-  syllabusTracking SyllabusTracker[] @relation("TeacherSyllabus")
-  progressReports  StudentProgressReport[] @relation("TeacherProgressReports")
+  // Staff / teacher administration
+  staffRecord      StaffRecord?
+  syllabusPlans    SyllabusPlan[]     @relation("TeacherSyllabus")
 }
 
 model Profile {
@@ -98,11 +98,14 @@ model Profile {
   // NGO Universal ID
   studentId      String? @unique
 
+  // ID card / contact details
+  phone          String?
+  className      String?  // e.g. "Class 10", "Vocational Batch A"
+  photoData      String?  @db.Text // base64 data-URI passport photo (size-capped in API)
+
   // General Details
   headline       String?
-  imageUrl       String?
   address        String?
-  phone          String?
   languages      String? // comma separated
   hobbies        String?
   vocation       String? // Vocational interests/training
@@ -131,7 +134,79 @@ model Profile {
   careerTrack    CareerRecord[]
   notifications  Notification[]
   auditLogs      RecordAuditLog[]
-  progressReports StudentProgressReport[]
+  examRecords    ExamRecord[]
+}
+
+// HR-style record for teachers, maintained by admins.
+model StaffRecord {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  phone            String?
+  address          String?
+  designation      String?
+  dob              DateTime?
+  qualification    String?
+  joiningDate      DateTime?
+  probationEndDate DateTime?
+  department       String?
+  project          String?
+  salary           Float?
+  incrementHistory String?  @db.Text // JSON array [{date, previousSalary, newSalary, note}]
+  additionalTasks  String?
+  workingHours     String?
+  subject          String?
+  classesTaking    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Monthly syllabus plan per class/subject, updated by the teacher.
+model SyllabusPlan {
+  id        String @id @default(uuid())
+  teacherId String
+  teacher   User   @relation("TeacherSyllabus", fields: [teacherId], references: [id], onDelete: Restrict)
+
+  month     String // "2026-07"
+  className String
+  subject   String
+
+  targetChapters    String @db.Text
+  completedChapters String @db.Text
+  pendingChapters   String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([teacherId, month, className, subject])
+}
+
+// One row per student per subject per academic year:
+// four internal assessments + two semester exams.
+model ExamRecord {
+  id        String  @id @default(uuid())
+  profileId String
+  profile   Profile @relation(fields: [profileId], references: [id], onDelete: Restrict)
+
+  academicYear String // e.g. "2026-27"
+  subject      String
+
+  ia1  Float?
+  ia2  Float?
+  ia3  Float?
+  ia4  Float?
+  sem1 Float?
+  sem2 Float?
+
+  iaMax  Float @default(25)  // max marks per internal assessment
+  semMax Float @default(100) // max marks per semester exam
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([profileId, academicYear, subject])
 }
 
 model Cohort {
@@ -143,8 +218,6 @@ model Cohort {
   teacher     User      @relation("TeacherCohorts", fields: [teacherId], references: [id], onDelete: Restrict)
   
   students    Profile[] @relation("StudentCohorts")
-
-  syllabusTracking SyllabusTracker[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -234,7 +307,7 @@ model Attendance {
   date        DateTime
   status      AttendanceStatus @default(PRESENT)
   classOrEvent String? // Optional descriptor of what they attended
-  notes       String?  // Reason for leave or other remarks
+  notes       String?
   
   createdAt   DateTime @default(now())
 }
@@ -272,57 +345,4 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
-}
-
-model TeacherProfile {
-  id                        String    @id @default(uuid())
-  userId                    String    @unique
-  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  phoneNumber               String?
-  address                   String?
-  designation               String?
-  dob                       DateTime?
-  qualification             String?
-  joiningDate               DateTime?
-  probationCompletionDate   DateTime?
-  department                String?
-  project                   String?
-  salary                    Float?
-  lastIncrementHistory      String?   @db.Text
-  additionalTasks           String?   @db.Text
-  workingHours              String?
-  subject                   String?
-  classesTaking             String?
-}
-
-model SyllabusTracker {
-  id                String    @id @default(uuid())
-  cohortId          String
-  cohort            Cohort    @relation(fields: [cohortId], references: [id], onDelete: Cascade)
-  teacherId         String
-  teacher           User      @relation("TeacherSyllabus", fields: [teacherId], references: [id], onDelete: Restrict)
-  
-  month             String    // e.g., "August 2026"
-  targetChapters    String?   @db.Text
-  completedChapters String?   @db.Text
-  pendingChapters   String?   @db.Text
-  
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-}
-
-model StudentProgressReport {
-  id                  String    @id @default(uuid())
-  profileId           String
-  profile             Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  teacherId           String
-  teacher             User      @relation("TeacherProgressReports", fields: [teacherId], references: [id], onDelete: Restrict)
-  
-  month               String    // e.g., "August 2026"
-  academicPerformance String?   @db.Text
-  behavioralNotes     String?   @db.Text
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
 }

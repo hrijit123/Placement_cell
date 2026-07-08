@@ -6,9 +6,9 @@ async function main() {
   console.log('Seeding mock data...')
 
   await prisma.accessLog.deleteMany()
-  await prisma.studentProgressReport.deleteMany()
-  await prisma.syllabusTracker.deleteMany()
-  await prisma.teacherProfile.deleteMany()
+  await prisma.examRecord.deleteMany()
+  await prisma.syllabusPlan.deleteMany()
+  await prisma.staffRecord.deleteMany()
   await prisma.account.deleteMany()
   await prisma.session.deleteMany()
   await prisma.recordAuditLog.deleteMany()
@@ -37,7 +37,7 @@ async function main() {
       name: 'Jane Smith',
       role: Role.TEACHER,
       status: 'ACTIVE',
-      teacherProfile: {
+      staffRecord: {
         create: {
           department: 'Computer Science',
           designation: 'Senior Instructor'

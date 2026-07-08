@@ -2,60 +2,121 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 
-export async function GET() {
+const SyllabusSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM"),
+  className: z.string().min(1).max(100),
+  subject: z.string().min(1).max(100),
+  targetChapters: z.string().max(5000),
+  completedChapters: z.string().max(5000),
+  pendingChapters: z.string().max(5000),
+});
+
+async function getViewer() {
   const session = await getServerSession(authOptions);
-  const role = (session as any)?.user?.role;
-  if (!session || (role !== "ADMIN" && role !== "TEACHER")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let syllabi;
-  if (role === "ADMIN") {
-    syllabi = await prisma.syllabusTracker.findMany({
-      include: { cohort: true, teacher: true },
-      orderBy: { createdAt: 'desc' }
-    });
-  } else {
-    syllabi = await prisma.syllabusTracker.findMany({
-      where: { teacherId: user.id },
-      include: { cohort: true, teacher: true },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  return NextResponse.json(syllabi);
+  if (!session?.user?.email) return null;
+  return prisma.user.findUnique({
+    where: { email: session.user.email },
+    include: { profile: true },
+  });
 }
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session || (session.user as any)?.role !== "TEACHER") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function GET(req: Request) {
   try {
-    const user = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const viewer = await getViewer();
+    if (!viewer || viewer.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const { cohortId, month, targetChapters, completedChapters, pendingChapters } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const month = searchParams.get("month"); // optional YYYY-MM filter
 
-    const syllabus = await prisma.syllabusTracker.create({
-      data: {
-        cohortId,
-        teacherId: user.id,
-        month,
-        targetChapters,
-        completedChapters,
-        pendingChapters
-      }
+    const baseWhere = month && /^\d{4}-\d{2}$/.test(month) ? { month } : {};
+
+    let where;
+    if (viewer.role === "ADMIN") {
+      where = baseWhere; // admins see everything
+    } else if (viewer.role === "TEACHER") {
+      where = { ...baseWhere, teacherId: viewer.id };
+    } else if (viewer.role === "STUDENT") {
+      const className = viewer.profile?.className;
+      if (!className) return NextResponse.json({ plans: [], noClass: true });
+      where = { ...baseWhere, className };
+    } else {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const plans = await prisma.syllabusPlan.findMany({
+      where,
+      orderBy: [{ month: "desc" }, { className: "asc" }, { subject: "asc" }],
+      include: { teacher: { select: { name: true, email: true } } },
     });
 
-    return NextResponse.json(syllabus);
+    return NextResponse.json({ plans, role: viewer.role });
   } catch (error) {
-    console.error("Failed to create syllabus:", error);
+    console.error("Failed to fetch syllabus plans:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: Request) {
+  try {
+    const viewer = await getViewer();
+    if (!viewer || viewer.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (viewer.role !== "TEACHER" && viewer.role !== "ADMIN") {
+      return NextResponse.json({ error: "Only teachers can update the syllabus" }, { status: 403 });
+    }
+
+    const parsed = SyllabusSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid syllabus payload" }, { status: 400 });
+    }
+    const { month, className, subject, ...chapters } = parsed.data;
+
+    const plan = await prisma.syllabusPlan.upsert({
+      where: {
+        teacherId_month_className_subject: {
+          teacherId: viewer.id,
+          month,
+          className,
+          subject,
+        },
+      },
+      create: { teacherId: viewer.id, month, className, subject, ...chapters },
+      update: chapters,
+    });
+
+    return NextResponse.json({ success: true, plan });
+  } catch (error) {
+    console.error("Failed to save syllabus plan:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const viewer = await getViewer();
+    if (!viewer || viewer.status !== "ACTIVE") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Missing plan id" }, { status: 400 });
+
+    // Teachers can delete only their own plans; admins can delete any.
+    const where = viewer.role === "ADMIN" ? { id } : { id, teacherId: viewer.id };
+    const deleted = await prisma.syllabusPlan.deleteMany({ where });
+    if (deleted.count === 0) {
+      return NextResponse.json({ error: "Plan not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to delete syllabus plan:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

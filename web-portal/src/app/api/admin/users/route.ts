@@ -23,7 +23,7 @@ export async function GET(req: Request) {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        select: { id: true, name: true, email: true, role: true, status: true, createdAt: true, profile: { select: { id: true } }, teacherProfile: true },
+        select: { id: true, name: true, email: true, role: true, status: true, createdAt: true, profile: { select: { id: true } }, staffRecord: true },
       }),
       prisma.user.count(),
     ]);

@@ -1,32 +1,50 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+const STATUS_STYLES: Record<string, string> = {
+  PRESENT: "bg-green-100 text-green-800",
+  ABSENT: "bg-red-100 text-red-800",
+  LATE: "bg-amber-100 text-amber-800",
+  LEAVE: "bg-blue-100 text-blue-800",
+};
+
+type MonthlyRow = {
+  userId: string;
+  name: string;
+  studentId: string | null;
+  PRESENT: number;
+  ABSENT: number;
+  LATE: number;
+  LEAVE: number;
+  total: number;
+  percentage: number | null;
+};
+
+type MonthlyReport = {
+  month: string;
+  rows: MonthlyRow[];
+  totals: { PRESENT: number; ABSENT: number; LATE: number; LEAVE: number; total: number; percentage: number | null };
+};
 
 export default function AttendanceClient({ initialStudents }: { initialStudents: any[] }) {
+  const [tab, setTab] = useState<"daily" | "monthly">("daily");
   const [students, setStudents] = useState(initialStudents);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [eventDesc, setEventDesc] = useState("");
-  const [search, setSearch] = useState("");
-  const [leaveNotes, setLeaveNotes] = useState<{ [key: string]: string }>({});
-  const [activeLeaveInput, setActiveLeaveInput] = useState<string | null>(null);
 
-  const filteredStudents = students.filter(s => {
-    const q = search.toLowerCase();
-    const nameMatch = s.name?.toLowerCase().includes(q);
-    const idMatch = s.profile?.studentId?.toLowerCase().includes(q);
-    return nameMatch || idMatch;
-  });
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [report, setReport] = useState<MonthlyReport | null>(null);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const markAttendance = async (userId: string, status: string) => {
     setLoading(true);
-    const notes = status === "LEAVE" ? leaveNotes[userId] : undefined;
-    
     try {
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, date: selectedDate, status, classOrEvent: eventDesc, notes })
+        body: JSON.stringify({ userId, date: selectedDate, status, classOrEvent: eventDesc })
       });
       if (res.ok) {
         const newRecord = await res.json();
@@ -36,7 +54,6 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
           }
           return s;
         }));
-        setActiveLeaveInput(null);
       }
     } catch (e) {
       console.error(e);
@@ -44,177 +61,218 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
     setLoading(false);
   };
 
-  const analytics = useMemo(() => {
-    let present = 0;
-    let absent = 0;
-    let leave = 0;
-    
-    students.forEach(s => {
-      const todayRecord = s.attendance.find((a: any) => new Date(a.date).toISOString().split("T")[0] === selectedDate);
-      if (todayRecord) {
-        if (todayRecord.status === "PRESENT") present++;
-        else if (todayRecord.status === "ABSENT") absent++;
-        else if (todayRecord.status === "LEAVE") leave++;
-      }
-    });
+  const loadReport = useCallback(async (m: string) => {
+    setReport(null);
+    setReportError(null);
+    try {
+      const res = await fetch(`/api/attendance?month=${encodeURIComponent(m)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load report");
+      setReport(data);
+    } catch (e: any) {
+      setReportError(e.message);
+    }
+  }, []);
 
-    const total = present + absent + leave;
-    return {
-      present, absent, leave, total,
-      presentPct: total ? ((present / total) * 100).toFixed(1) : "0.0",
-      absentPct: total ? ((absent / total) * 100).toFixed(1) : "0.0",
-      leavePct: total ? ((leave / total) * 100).toFixed(1) : "0.0"
-    };
-  }, [students, selectedDate]);
+  useEffect(() => {
+    if (tab === "monthly") loadReport(month);
+  }, [tab, month, loadReport]);
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded shadow-sm border border-[#E1D8C9] flex flex-col items-center">
-          <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1">Total Marked</span>
-          <span className="text-2xl font-bold text-stone-800">{analytics.total}</span>
-        </div>
-        <div className="bg-white p-4 rounded shadow-sm border border-[#E1D8C9] flex flex-col items-center">
-          <span className="text-xs font-semibold text-green-700 uppercase tracking-wider mb-1">Present</span>
-          <span className="text-2xl font-bold text-green-800">{analytics.presentPct}% <span className="text-sm font-normal text-stone-500">({analytics.present})</span></span>
-        </div>
-        <div className="bg-white p-4 rounded shadow-sm border border-[#E1D8C9] flex flex-col items-center">
-          <span className="text-xs font-semibold text-red-700 uppercase tracking-wider mb-1">Absent</span>
-          <span className="text-2xl font-bold text-red-800">{analytics.absentPct}% <span className="text-sm font-normal text-stone-500">({analytics.absent})</span></span>
-        </div>
-        <div className="bg-white p-4 rounded shadow-sm border border-[#E1D8C9] flex flex-col items-center">
-          <span className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Leave</span>
-          <span className="text-2xl font-bold text-amber-600">{analytics.leavePct}% <span className="text-sm font-normal text-stone-500">({analytics.leave})</span></span>
-        </div>
+    <div>
+      {/* Tabs */}
+      <div className="flex gap-4 mb-6 border-b border-[#E1D8C9]">
+        {([["daily", "Daily Marking"], ["monthly", "Monthly Report & Analytics"]] as const).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-6 py-3 font-semibold border-b-2 ${tab === key ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Date</label>
-            <input 
-              type="date" 
-              value={selectedDate} 
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="border border-[#E1D8C9] p-2 rounded w-48"
-            />
+      {tab === "daily" && (
+        <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
+          <div className="flex gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Date</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="border border-[#E1D8C9] p-2 rounded w-48"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Class or Event (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. Resume Building Workshop"
+                value={eventDesc}
+                onChange={(e) => setEventDesc(e.target.value)}
+                className="border border-[#E1D8C9] p-2 rounded w-full"
+              />
+            </div>
           </div>
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Class or Event (Optional)</label>
-            <input 
-              type="text" 
-              placeholder="e.g. Resume Building Workshop"
-              value={eventDesc} 
-              onChange={(e) => setEventDesc(e.target.value)}
-              className="border border-[#E1D8C9] p-2 rounded w-full"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Search Students</label>
-            <input 
-              type="text" 
-              placeholder="Search by name or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border border-[#E1D8C9] p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-[#2D4A22]"
-            />
-          </div>
-        </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-[#3E362E] min-w-max">
+          <table className="w-full text-left text-sm text-[#3E362E]">
             <thead className="bg-[#FAF8F3] text-[#6B5E4C] uppercase text-xs">
               <tr>
                 <th className="p-3">Student Name</th>
                 <th className="p-3">Student ID</th>
-                <th className="p-3 w-48">Recent Records</th>
+                <th className="p-3">Recent Records</th>
                 <th className="p-3">Action for Selected Date</th>
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="p-6 text-center text-gray-500">
-                    No students match your search.
-                  </td>
-                </tr>
-              ) : (
-                filteredStudents.map((student) => {
-                  const hasMarkedToday = student.attendance.find(
-                    (a: any) => new Date(a.date).toISOString().split("T")[0] === selectedDate
-                  );
-                  return (
-                    <tr key={student.id} className="border-b border-[#E1D8C9]">
-                      <td className="p-3 font-semibold">{student.name || "Unknown"}</td>
-                      <td className="p-3 font-mono">{student.profile?.studentId || "N/A"}</td>
-                      <td className="p-3">
-                        <div className="flex gap-1 flex-wrap">
-                          {student.attendance.slice(0, 3).map((a: any) => (
-                            <span key={a.id} className={`text-[10px] px-2 py-1 rounded ${a.status === 'PRESENT' ? 'bg-green-100 text-green-800' : a.status === 'LEAVE' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`} title={a.notes}>
-                              {new Date(a.date).toLocaleDateString()} {a.status.substring(0,1)}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        {hasMarkedToday ? (
-                          <span className={`px-2 py-1 text-xs font-semibold rounded ${hasMarkedToday.status === 'PRESENT' ? 'bg-green-100 text-green-800' : hasMarkedToday.status === 'LEAVE' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'}`}>
-                            {hasMarkedToday.status} {hasMarkedToday.notes && `(${hasMarkedToday.notes})`}
+              {students.map((student) => {
+                const hasMarkedToday = student.attendance.some(
+                  (a: any) => new Date(a.date).toISOString().split("T")[0] === selectedDate
+                );
+                return (
+                  <tr key={student.id} className="border-b border-[#E1D8C9]">
+                    <td className="p-3 font-semibold">{student.name || "Unknown"}</td>
+                    <td className="p-3 font-mono">{student.profile?.studentId || "N/A"}</td>
+                    <td className="p-3">
+                      <div className="flex gap-1 flex-wrap">
+                        {student.attendance.slice(0, 3).map((a: any) => (
+                          <span key={a.id} className={`text-[10px] px-2 py-1 rounded ${STATUS_STYLES[a.status] || "bg-stone-100 text-stone-600"}`}>
+                            {new Date(a.date).toLocaleDateString()} {a.status}
                           </span>
-                        ) : (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => markAttendance(student.id, "PRESENT")}
-                                disabled={loading}
-                                className="bg-[#2D4A22] text-white px-3 py-1 rounded hover:bg-[#1f3418]"
-                              >
-                                Present
-                              </button>
-                              <button 
-                                onClick={() => markAttendance(student.id, "ABSENT")}
-                                disabled={loading}
-                                className="bg-red-700 text-white px-3 py-1 rounded hover:bg-red-800"
-                              >
-                                Absent
-                              </button>
-                              <button 
-                                onClick={() => setActiveLeaveInput(activeLeaveInput === student.id ? null : student.id)}
-                                disabled={loading}
-                                className="bg-amber-500 text-white px-3 py-1 rounded hover:bg-amber-600"
-                              >
-                                Leave
-                              </button>
-                            </div>
-                            {activeLeaveInput === student.id && (
-                              <div className="flex gap-2 items-center mt-1">
-                                <input 
-                                  type="text" 
-                                  placeholder="Leave reason..." 
-                                  value={leaveNotes[student.id] || ""}
-                                  onChange={e => setLeaveNotes({...leaveNotes, [student.id]: e.target.value})}
-                                  className="border text-xs p-1 rounded"
-                                />
-                                <button 
-                                  onClick={() => markAttendance(student.id, "LEAVE")}
-                                  disabled={loading}
-                                  className="text-xs bg-stone-800 text-white px-2 py-1 rounded"
-                                >
-                                  Save Leave
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      {hasMarkedToday ? (
+                        <span className="text-gray-500 italic">Marked</span>
+                      ) : (
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            onClick={() => markAttendance(student.id, "PRESENT")}
+                            disabled={loading}
+                            className="bg-[#2D4A22] text-white px-3 py-1 rounded hover:bg-[#1f3418] disabled:opacity-50"
+                          >
+                            Present
+                          </button>
+                          <button
+                            onClick={() => markAttendance(student.id, "LATE")}
+                            disabled={loading}
+                            className="bg-amber-600 text-white px-3 py-1 rounded hover:bg-amber-700 disabled:opacity-50"
+                          >
+                            Late
+                          </button>
+                          <button
+                            onClick={() => markAttendance(student.id, "ABSENT")}
+                            disabled={loading}
+                            className="bg-red-700 text-white px-3 py-1 rounded hover:bg-red-800 disabled:opacity-50"
+                          >
+                            Absent
+                          </button>
+                          <button
+                            onClick={() => markAttendance(student.id, "LEAVE")}
+                            disabled={loading}
+                            className="bg-blue-700 text-white px-3 py-1 rounded hover:bg-blue-800 disabled:opacity-50"
+                          >
+                            Leave
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {tab === "monthly" && (
+        <div className="space-y-6">
+          <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9] flex items-end gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Month</label>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="border border-[#E1D8C9] p-2 rounded w-48"
+              />
+            </div>
+            <p className="text-xs text-[#8B7D6B] pb-2">
+              Attendance % = (Present + Late) ÷ (Total − Leave). Leave days are excluded as approved absences.
+            </p>
+          </div>
+
+          {reportError && <p className="text-red-700 bg-red-50 border border-red-200 rounded p-4">Error: {reportError}</p>}
+          {!report && !reportError && <p className="text-[#8B7D6B] italic">Loading report…</p>}
+
+          {report && (
+            <>
+              {/* Analytics summary */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <SummaryCard label="Attendance %" value={report.totals.percentage != null ? `${report.totals.percentage}%` : "—"} highlight />
+                <SummaryCard label="Present" value={report.totals.PRESENT} />
+                <SummaryCard label="Late" value={report.totals.LATE} />
+                <SummaryCard label="Absent" value={report.totals.ABSENT} />
+                <SummaryCard label="Leave" value={report.totals.LEAVE} />
+              </div>
+
+              {/* Per-student table */}
+              <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9] overflow-x-auto">
+                {report.rows.length === 0 ? (
+                  <p className="text-[#8B7D6B] italic py-6 text-center">No attendance recorded for this month.</p>
+                ) : (
+                  <table className="w-full text-left text-sm text-[#3E362E]">
+                    <thead className="bg-[#FAF8F3] text-[#6B5E4C] uppercase text-xs">
+                      <tr>
+                        <th className="p-3">Student</th>
+                        <th className="p-3">Student ID</th>
+                        <th className="p-3 text-center">Present</th>
+                        <th className="p-3 text-center">Late</th>
+                        <th className="p-3 text-center">Absent</th>
+                        <th className="p-3 text-center">Leave</th>
+                        <th className="p-3 text-center">Days Marked</th>
+                        <th className="p-3 text-right">Attendance %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {report.rows.map((r) => (
+                        <tr key={r.userId} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3]">
+                          <td className="p-3 font-semibold">{r.name}</td>
+                          <td className="p-3 font-mono text-xs">{r.studentId || "N/A"}</td>
+                          <td className="p-3 text-center text-green-800">{r.PRESENT}</td>
+                          <td className="p-3 text-center text-amber-700">{r.LATE}</td>
+                          <td className="p-3 text-center text-red-700">{r.ABSENT}</td>
+                          <td className="p-3 text-center text-blue-700">{r.LEAVE}</td>
+                          <td className="p-3 text-center">{r.total}</td>
+                          <td className="p-3 text-right">
+                            {r.percentage != null ? (
+                              <span className={`font-semibold ${r.percentage >= 75 ? "text-green-800" : r.percentage >= 50 ? "text-amber-700" : "text-red-700"}`}>
+                                {r.percentage}%
+                              </span>
+                            ) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, highlight }: { label: string; value: number | string; highlight?: boolean }) {
+  return (
+    <div className={`p-5 rounded shadow-sm border ${highlight ? "bg-[#2D4A22] text-white border-[#2D4A22]" : "bg-white border-[#E1D8C9]"}`}>
+      <p className={`text-xs uppercase tracking-wider mb-1 ${highlight ? "text-emerald-100" : "text-[#8B7D6B]"}`}>{label}</p>
+      <p className="text-3xl font-serif font-semibold">{value}</p>
     </div>
   );
 }

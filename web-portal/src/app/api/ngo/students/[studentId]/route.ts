@@ -65,10 +65,6 @@ export async function GET(
         careerTrack: {
           orderBy: { createdAt: 'desc' },
           take: isFullHistory ? undefined : 20
-        },
-        progressReports: {
-          include: { teacher: { select: { name: true, email: true } } },
-          orderBy: { createdAt: 'desc' }
         }
       }
     });
@@ -143,9 +139,10 @@ export async function GET(
       isRedacted,
       personalDetails: {
         headline: studentProfile.headline,
-        imageUrl: studentProfile.imageUrl,
         address: studentProfile.address,
         phone: studentProfile.phone,
+        className: studentProfile.className,
+        photoData: studentProfile.photoData,
         languages: studentProfile.languages,
         hobbies: studentProfile.hobbies,
         vocation: studentProfile.vocation,
@@ -183,8 +180,7 @@ export async function GET(
         date: att.date,
         status: att.status,
         classOrEvent: att.classOrEvent
-      })),
-      progressReports: studentProfile.progressReports || []
+      }))
     };
 
     return NextResponse.json(dossier);
