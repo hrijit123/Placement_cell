@@ -140,6 +140,9 @@ export async function GET(
       personalDetails: {
         headline: studentProfile.headline,
         address: studentProfile.address,
+        phone: studentProfile.phone,
+        className: studentProfile.className,
+        photoData: studentProfile.photoData,
         languages: studentProfile.languages,
         hobbies: studentProfile.hobbies,
         vocation: studentProfile.vocation,

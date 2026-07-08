@@ -92,8 +92,13 @@ export default async function AdminDashboard() {
             <h1 className="text-4xl font-serif text-[#2C241B] mb-2">Management Dashboard</h1>
             <p className="text-[#6B5E4C]">Spotless Record & Platform Analytics</p>
           </div>
-          <div className="text-sm text-[#8B7D6B]">
-            Data updated in real-time
+          <div className="flex items-center gap-3">
+            <a href="/admin/staff" className="text-sm px-4 py-2 border border-[#E1D8C9] rounded hover:bg-white text-[#2C241B] font-medium">
+              Teacher Records
+            </a>
+            <a href="/syllabus" className="text-sm px-4 py-2 border border-[#E1D8C9] rounded hover:bg-white text-[#2C241B] font-medium">
+              Syllabus Tracker
+            </a>
           </div>
         </header>
 

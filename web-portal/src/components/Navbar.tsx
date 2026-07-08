@@ -39,6 +39,11 @@ export default function Navbar() {
                 <Link href="/staff" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Staff Portal</Link>
               </>
             )}
+
+            {/* Syllabus — visible to every signed-in role */}
+            {session && (
+              <Link href="/syllabus" className="text-stone-600 hover:text-stone-900 px-3 py-2 text-sm font-medium">Syllabus</Link>
+            )}
           </div>
 
           <div className="flex items-center">

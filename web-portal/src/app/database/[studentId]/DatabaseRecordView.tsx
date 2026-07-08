@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle, AlertCircle, Clock } from "lucide-react";
+import ReportCardSection from "./ReportCardSection";
+import IdCardSection from "./IdCardSection";
 
 const parseVerifiedField = (val: string | null) => {
   if (!val) return { value: "", status: "NONE" };
@@ -33,7 +35,7 @@ const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s
 
 export default function DatabaseRecordView({ studentId, role }: { studentId: string, role?: string }) {
   const [state, setState] = useState<any>({ status: "loading" });
-  const [activeTab, setActiveTab] = useState<"transcripts" | "tracker">("transcripts");
+  const [activeTab, setActiveTab] = useState<"transcripts" | "tracker" | "report" | "idcard">("transcripts");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   
@@ -150,11 +152,23 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           >
             Transcripts & Information
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab("tracker")}
             className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "tracker" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
           >
             Placement Tracker
+          </button>
+          <button
+            onClick={() => setActiveTab("report")}
+            className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "report" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
+          >
+            Report Card
+          </button>
+          <button
+            onClick={() => setActiveTab("idcard")}
+            className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "idcard" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
+          >
+            ID Card
           </button>
         </div>
 
@@ -237,6 +251,30 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === "report" && (
+          <ReportCardSection
+            studentId={studentId}
+            studentName={d.name}
+            className={d.personalDetails.className}
+          />
+        )}
+
+        {activeTab === "idcard" && (
+          <IdCardSection
+            studentId={studentId}
+            data={{
+              name: d.name,
+              className: d.personalDetails.className,
+              phone: d.personalDetails.phone,
+              address: d.personalDetails.address,
+              photoData: d.personalDetails.photoData,
+              email: d.email,
+            }}
+            canEdit={role !== "TEACHER" || !d.isRedacted}
+            onSaved={load}
+          />
         )}
 
         {activeTab === "tracker" && (
