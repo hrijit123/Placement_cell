@@ -63,33 +63,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] font-sans selection:bg-[#2D4A22] selection:text-white pb-12">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-[#E1D8C9] px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-        <div className="flex items-center gap-2">
-          <Heart className="w-6 h-6 text-[#2D4A22] fill-[#2D4A22]" />
-          <span className="font-serif font-bold text-[#2C241B] text-xl">DEEDS Connect</span>
-        </div>
-        
-        <div className="hidden md:flex items-center gap-6 text-sm font-medium text-stone-500">
-          <span className="flex items-center gap-1 text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1 cursor-pointer"><LayoutDashboard className="w-4 h-4" /> Home</span>
-          <span className="flex items-center gap-1 hover:text-stone-800 cursor-pointer"><Users className="w-4 h-4" /> Students</span>
-          <span className="flex items-center gap-1 hover:text-stone-800 cursor-pointer"><Handshake className="w-4 h-4" /> Placements</span>
-          <span className="flex items-center gap-1 hover:text-stone-800 cursor-pointer"><FileBarChart className="w-4 h-4" /> Reports</span>
-          <span className="flex items-center gap-1 hover:text-stone-800 cursor-pointer"><Settings className="w-4 h-4" /> Settings</span>
-        </div>
 
-        <div>
-          {session ? (
-            <button onClick={handleDashboardRedirect} className="flex items-center gap-2 bg-[#2D4A22] text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-[#1f3418] transition-colors shadow-sm">
-              <LayoutDashboard className="w-4 h-4" /> Dashboard
-            </button>
-          ) : (
-            <button onClick={() => handleRoleSelect("STUDENT")} className="flex items-center gap-2 bg-[#2D4A22] text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-[#1f3418] transition-colors shadow-sm">
-              <LogIn className="w-4 h-4" /> Sign In
-            </button>
-          )}
-        </div>
-      </nav>
 
       {selectedRole && !session ? (
         <div className="flex items-center justify-center min-h-[70vh] p-4">
