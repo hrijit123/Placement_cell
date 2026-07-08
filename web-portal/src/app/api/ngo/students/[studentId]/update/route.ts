@@ -70,6 +70,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       internships: data.internships !== undefined ? data.internships : profile.internships,
       expectedSalary: data.expectedSalary !== undefined ? data.expectedSalary : profile.expectedSalary,
       availability: data.availability !== undefined ? data.availability : profile.availability,
+      imageUrl: data.imageUrl !== undefined ? data.imageUrl : profile.imageUrl,
+      isEligibleForPlacement: data.isEligibleForPlacement !== undefined ? data.isEligibleForPlacement : profile.isEligibleForPlacement,
       
       // Verified Fields
       education: processVerifiedField(data.education, profile.education),

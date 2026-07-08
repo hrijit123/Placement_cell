@@ -47,6 +47,7 @@ enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
+  LEAVE
 }
 
 enum UserStatus {
@@ -99,6 +100,7 @@ model Profile {
 
   // General Details
   headline       String?
+  imageUrl       String?
   address        String?
   languages      String? // comma separated
   hobbies        String?
@@ -117,6 +119,7 @@ model Profile {
   // Job Preferences
   expectedSalary String?
   availability   String? // e.g. Full-time, Immediate
+  isEligibleForPlacement Boolean @default(false)
 
   resumePdfUrl   String?
 
@@ -230,6 +233,7 @@ model Attendance {
   date        DateTime
   status      AttendanceStatus @default(PRESENT)
   classOrEvent String? // Optional descriptor of what they attended
+  notes       String?  // Reason for leave or other remarks
   
   createdAt   DateTime @default(now())
 }

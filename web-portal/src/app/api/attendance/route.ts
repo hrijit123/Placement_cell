@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId, date, status, classOrEvent } = await req.json();
+  const { userId, date, status, classOrEvent, notes } = await req.json();
 
   if (!userId || !date || !status) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -47,7 +47,8 @@ export async function POST(req: Request) {
       userId,
       date: new Date(date),
       status,
-      classOrEvent
+      classOrEvent,
+      notes
     }
   });
 

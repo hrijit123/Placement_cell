@@ -14,6 +14,53 @@ const parseVerifiedField = (val: string | null) => {
   }
 };
 
+const IdCardModal = ({ onClose, profile, user }: { onClose: () => void, profile: any, user: any }) => {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded p-6 max-w-sm w-full">
+        <div className="flex justify-end mb-4">
+          <button onClick={onClose} className="text-stone-500 hover:text-stone-800">Close</button>
+        </div>
+        
+        <div id="id-card-print" className="border-2 border-[#2D4A22] rounded-xl overflow-hidden bg-white shadow-lg w-[300px] mx-auto h-[450px] flex flex-col">
+          <div className="bg-[#2D4A22] text-white p-4 text-center">
+            <h2 className="font-serif font-bold text-xl tracking-tight">DEEDS Connect</h2>
+            <p className="text-[10px] opacity-80 uppercase tracking-wider">Empowering Specially Abled</p>
+          </div>
+          
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            <div className="w-32 h-32 bg-stone-200 rounded border-2 border-[#E1D8C9] mb-4 overflow-hidden flex items-center justify-center">
+              {profile.imageUrl ? (
+                <img src={profile.imageUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-stone-400 text-xs">No Photo</span>
+              )}
+            </div>
+            
+            <h3 className="font-bold text-lg text-center text-[#2C241B]">{user.name}</h3>
+            <p className="text-sm font-mono text-[#6B5E4C] mb-2">{profile.studentId}</p>
+            
+            <div className="w-full text-xs text-[#3E362E] space-y-1 bg-[#FAF8F3] p-3 rounded">
+              <p><span className="font-semibold">Class:</span> {profile.cohorts?.[0]?.name || "Not Assigned"}</p>
+              <p><span className="font-semibold">Address:</span> {profile.address || "N/A"}</p>
+            </div>
+          </div>
+          
+          <div className="bg-[#E1D8C9] p-2 text-center text-[10px] text-[#2C241B] font-semibold">
+            Student Identity Card
+          </div>
+        </div>
+        
+        <div className="mt-6 flex justify-center">
+          <button onClick={() => window.print()} className="bg-[#2D4A22] text-white px-4 py-2 rounded font-semibold w-full hover:bg-[#1f3418]">
+            Print ID Card
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const parseList = (val: any) => {
   if (!val) return [];
   if (Array.isArray(val)) return val;
@@ -70,7 +117,7 @@ const FileUploader = ({ onUpload, label }: { onUpload: (url: string) => void, la
       <label className="cursor-pointer bg-stone-200 hover:bg-stone-300 text-stone-800 px-3 py-1 rounded text-xs font-semibold flex items-center gap-1">
         <Upload className="w-3 h-3" />
         {uploading ? "Uploading..." : label}
-        <input type="file" className="hidden" accept=".pdf" onChange={handleFileChange} disabled={uploading} />
+        <input type="file" className="hidden" accept=".pdf,image/*" onChange={handleFileChange} disabled={uploading} />
       </label>
     </div>
   );
@@ -104,6 +151,7 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
     behavioralNotes: ""
   });
   const [isSavingReport, setIsSavingReport] = useState(false);
+  const [showIdCard, setShowIdCard] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -132,6 +180,8 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           internships: data.professionalBackground.internships || "",
           expectedSalary: data.jobPreferences.expectedSalary === '[REDACTED]' ? '' : (data.jobPreferences.expectedSalary || ""),
           availability: data.jobPreferences.availability || "",
+          imageUrl: data.personalDetails.imageUrl || "",
+          isEligibleForPlacement: data.jobPreferences.isEligibleForPlacement ?? false,
         });
       } else {
         setState({ status: "error", message: data.message || data.error });
@@ -216,12 +266,19 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
               </p>
             )}
           </div>
-          {role !== "STUDENT" && (
-            <a href="/database" className="px-4 py-2 border border-[#E1D8C9] rounded text-sm hover:bg-white transition-colors">
-              Back to Search
-            </a>
-          )}
+          <div className="flex gap-2">
+            <button onClick={() => setShowIdCard(true)} className="px-4 py-2 border border-[#2D4A22] text-[#2D4A22] rounded text-sm font-semibold hover:bg-[#FAF8F3] transition-colors">
+              Generate ID Card
+            </button>
+            {role !== "STUDENT" && (
+              <a href="/database" className="px-4 py-2 border border-[#E1D8C9] rounded text-sm hover:bg-white transition-colors">
+                Back to Search
+              </a>
+            )}
+          </div>
         </header>
+
+        {showIdCard && <IdCardModal onClose={() => setShowIdCard(false)} profile={d.rawProfile} user={{name: d.name}} />}
 
         <div className="flex gap-4 mb-8 border-b border-[#E1D8C9]">
           <button 
@@ -287,6 +344,48 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                   )}
                 </div>
               ))}
+              
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">
+                  Eligible For Placement
+                </label>
+                {isEditing ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input 
+                      type="checkbox" 
+                      checked={editForm.isEligibleForPlacement} 
+                      onChange={(e) => setEditForm({ ...editForm, isEligibleForPlacement: e.target.checked })}
+                      className="w-4 h-4 text-[#2D4A22] focus:ring-[#2D4A22]"
+                    />
+                    <span className="text-sm">Yes, student is eligible</span>
+                  </div>
+                ) : (
+                  <div className="text-[#3E362E] min-h-[60px] p-2 bg-[#FAF8F3] rounded border border-transparent whitespace-pre-wrap">
+                    {editForm.isEligibleForPlacement ? "Yes" : "No"}
+                  </div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">
+                  Profile Image URL (For ID Card)
+                </label>
+                {isEditing ? (
+                  <div className="flex items-center gap-4 mt-2">
+                    {editForm.imageUrl && <img src={editForm.imageUrl} className="w-16 h-16 rounded object-cover border" />}
+                    <FileUploader label="Upload Photo" onUpload={(url) => setEditForm({...editForm, imageUrl: url})} />
+                  </div>
+                ) : (
+                  <div className="text-[#3E362E] min-h-[60px] p-2 bg-[#FAF8F3] rounded border border-transparent whitespace-pre-wrap flex items-center gap-2">
+                    {editForm.imageUrl ? (
+                      <img src={editForm.imageUrl} className="w-16 h-16 rounded object-cover border" />
+                    ) : (
+                      <span className="text-gray-400 italic">No image uploaded</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
 
             {/* Structured Fields Section */}

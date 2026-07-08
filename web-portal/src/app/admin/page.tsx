@@ -3,8 +3,8 @@ import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import UserManagementTable from "./UserManagementTable"
-import ChartsSection from "./ChartsSection"
 import AuditLogsTable from "./AuditLogsTable"
+import { Users, UserCheck, CalendarCheck, Briefcase, Building, GraduationCap, CheckCircle } from "lucide-react"
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions)
@@ -12,20 +12,19 @@ export default async function AdminDashboard() {
   const adminUser = await prisma.user.findUnique({ where: { email: session.user.email } })
   if (!adminUser || adminUser.role !== 'ADMIN' || adminUser.status !== 'ACTIVE') redirect('/')
 
-  const [totalUsers, totalStudents, totalRecruiters, totalJobs, totalApplications, recentApplications, auditLogs] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: 'STUDENT' } }),
-    prisma.user.count({ where: { role: 'RECRUITER' } }),
-    prisma.job.count(),
-    prisma.careerRecord.count({ where: { recordType: 'INTERVIEW' } }),
-    prisma.careerRecord.findMany({
-      take: 5,
-      where: { recordType: 'INTERVIEW' },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        profile: { include: { user: true } }
-      }
-    }),
+  const [
+    totalStudents,
+    activeStudents,
+    allAttendance,
+    eligibleStudents,
+    allCareers,
+    auditLogs
+  ] = await Promise.all([
+    prisma.profile.count(),
+    prisma.user.count({ where: { role: 'STUDENT', status: 'ACTIVE' } }),
+    prisma.attendance.findMany(),
+    prisma.profile.count({ where: { isEligibleForPlacement: true } }),
+    prisma.careerRecord.findMany(),
     prisma.recordAuditLog.findMany({
       take: 50,
       orderBy: { timestamp: 'desc' },
@@ -36,142 +35,95 @@ export default async function AdminDashboard() {
     })
   ])
 
-  const sixMonthsAgo = new Date()
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-  sixMonthsAgo.setDate(1)
-  sixMonthsAgo.setHours(0, 0, 0, 0)
+  const presentCount = allAttendance.filter(a => a.status === "PRESENT").length;
+  const attendancePct = allAttendance.length ? ((presentCount / allAttendance.length) * 100).toFixed(1) : 0;
 
-  const [funnelRaw, employersRaw, attendanceRaw, recentApps, placedStudents, workingNow, salaryAgg] = await Promise.all([
-    prisma.careerRecord.groupBy({ by: ['interviewStatus'], where: { recordType: 'INTERVIEW' }, _count: { _all: true } }),
-    prisma.careerRecord.groupBy({
-      by: ['company'],
-      where: { recordType: 'PLACEMENT' },
-      _count: { _all: true },
-      orderBy: { _count: { company: 'desc' } },
-      take: 5
-    }),
-    prisma.attendance.groupBy({ by: ['status'], _count: { _all: true } }),
-    prisma.careerRecord.findMany({
-      where: { recordType: 'INTERVIEW', createdAt: { gte: sixMonthsAgo } },
-      select: { createdAt: true }
-    }),
-    prisma.careerRecord.groupBy({
-      by: ['profileId'],
-      where: { recordType: 'INTERVIEW', interviewStatus: 'OFFER_ACCEPTED' }
-    }),
-    prisma.careerRecord.count({ where: { recordType: 'PLACEMENT', placementStatus: 'WORKING' } }),
-    prisma.careerRecord.aggregate({ _avg: { salary: true } })
-  ])
+  const placedStudentsProfiles = new Set(allCareers.filter(c => c.recordType === "PLACEMENT" && c.placementStatus === "WORKING").map(c => c.profileId));
+  const studentsPlaced = placedStudentsProfiles.size;
 
-  const STATUS_ORDER = [
-    'APPLIED', 'SCHEDULED', 'ATTENDED', 'NO_SHOW',
-    'OFFER_EXTENDED', 'OFFER_ACCEPTED', 'OFFER_REJECTED_BY_STUDENT', 'REJECTED_BY_COMPANY'
-  ]
-  const funnel = STATUS_ORDER
-    .map(status => ({
-      status: status.replaceAll('_', ' '),
-      count: funnelRaw.find((f: any) => f.interviewStatus === status)?._count._all ?? 0
-    }))
-    .filter((f: any) => f.count > 0)
+  const activeEmployers = new Set(allCareers.map(c => c.company)).size;
 
-  const topEmployers = employersRaw.map((e: any) => ({ company: e.company, placements: e._count._all }))
-  const attendance = attendanceRaw.map((a: any) => ({ status: a.status, count: a._count._all }))
+  const alumniByYearRaw = allCareers.filter(c => c.recordType === "PLACEMENT" && c.placementStatus === "WORKING" && c.startDate);
+  
+  const alumniByYear = alumniByYearRaw.reduce((acc: any, curr) => {
+    const year = new Date(curr.startDate!).getFullYear();
+    acc[year] = (acc[year] || 0) + 1;
+    return acc;
+  }, {});
 
-  const monthly: { month: string; applications: number }[] = []
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(sixMonthsAgo)
-    d.setMonth(d.getMonth() + i)
-    const label = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-    monthly.push({
-      month: label,
-      applications: recentApps.filter((a: any) =>
-        a.createdAt.getMonth() === d.getMonth() && a.createdAt.getFullYear() === d.getFullYear()
-      ).length
-    })
-  }
-
-  const placementRate = totalStudents > 0 ? Math.round((placedStudents.length / totalStudents) * 100) : 0
-  const avgSalary = salaryAgg._avg.salary
+  const alumniYearList = Object.keys(alumniByYear).map(year => ({
+    year,
+    count: alumniByYear[year]
+  })).sort((a, b) => Number(b.year) - Number(a.year));
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
-      <div className="max-w-6xl mx-auto">
-        <header className="mb-12 border-b border-[#E1D8C9] pb-6 flex justify-between items-end">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-10 border-b border-[#E1D8C9] pb-6 flex justify-between items-end">
           <div>
-            <h1 className="text-4xl font-serif text-[#2C241B] mb-2">Management Dashboard</h1>
-            <p className="text-[#6B5E4C]">Spotless Record & Platform Analytics</p>
+            <h1 className="text-4xl font-serif text-[#2C241B] mb-2 font-bold tracking-tight">Admin Dashboard</h1>
+            <p className="text-[#6B5E4C]">Platform Analytics & Global Management</p>
           </div>
-          <div className="text-sm text-[#8B7D6B]">
+          <div className="text-sm text-[#8B7D6B] font-medium bg-white px-4 py-2 rounded-full shadow-sm border border-stone-200">
             Data updated in real-time
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <StatCard title="Total Students" value={totalStudents} />
-          <StatCard title="Active Recruiters" value={totalRecruiters} />
-          <StatCard title="Jobs Posted" value={totalJobs} />
-          <StatCard title="Applications Logged" value={totalApplications} />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <StatCard title="Placement Rate" value={`${placementRate}%`} />
-          <StatCard title="Currently Employed" value={workingNow} />
-          <StatCard title="Avg. Placement Salary" value={avgSalary != null ? `₹${Math.round(avgSalary).toLocaleString('en-IN')}` : '—'} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-12">
+          <StatCard title="Total Students" value={totalStudents} icon={<Users className="w-5 h-5 text-blue-600" />} />
+          <StatCard title="Active Students" value={activeStudents} icon={<UserCheck className="w-5 h-5 text-green-600" />} />
+          <StatCard title="Attendance %" value={`${attendancePct}%`} icon={<CalendarCheck className="w-5 h-5 text-purple-600" />} />
+          <StatCard title="Eligible for Placement" value={eligibleStudents} icon={<CheckCircle className="w-5 h-5 text-amber-600" />} />
+          <StatCard title="Students Placed" value={studentsPlaced} icon={<Briefcase className="w-5 h-5 text-emerald-600" />} />
+          <StatCard title="Active Employers" value={activeEmployers} icon={<Building className="w-5 h-5 text-indigo-600" />} />
         </div>
 
-        <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} />
-
-        <section className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9]">
-          <h2 className="text-2xl font-serif text-[#2C241B] mb-6">Recent Applications Record</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b-2 border-[#E1D8C9] text-[#6B5E4C]">
-                  <th className="py-3 px-4 font-semibold">Student</th>
-                  <th className="py-3 px-4 font-semibold">Role</th>
-                  <th className="py-3 px-4 font-semibold">Company</th>
-                  <th className="py-3 px-4 font-semibold">Status</th>
-                  <th className="py-3 px-4 font-semibold">Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentApplications.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-[#8B7D6B] italic">No applications on record yet.</td>
-                  </tr>
-                ) : (
-                  recentApplications.map((app: any) => (
-                    <tr key={app.id} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3] transition-colors">
-                      <td className="py-4 px-4">{app.profile?.user?.name || 'Unknown'}</td>
-                      <td className="py-4 px-4 font-medium">{app.role}</td>
-                      <td className="py-4 px-4">{app.company}</td>
-                      <td className="py-4 px-4">
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#E8F0E5] text-[#2D4A22]">
-                          {app.interviewStatus}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-[#6B5E4C]">
-                        {new Date(app.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-[#E1D8C9]">
+            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-stone-100">
+              <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                <GraduationCap className="w-5 h-5 text-amber-600" />
+              </div>
+              <h2 className="text-xl font-serif text-[#2C241B] font-semibold">Alumni Employed</h2>
+            </div>
+            
+            {alumniYearList.length === 0 ? (
+              <p className="text-stone-500 text-sm text-center py-8">No alumni placement data available yet.</p>
+            ) : (
+              <div className="space-y-4">
+                {alumniYearList.map((item) => (
+                  <div key={item.year} className="flex justify-between items-center p-3 hover:bg-stone-50 rounded-lg transition-colors border border-transparent hover:border-stone-100">
+                    <span className="font-semibold text-stone-700 text-lg">{item.year}</span>
+                    <span className="bg-[#2D4A22] text-white font-bold px-4 py-1 rounded-full text-sm">
+                      {item.count} {item.count === 1 ? 'Student' : 'Students'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </section>
+          
+          <div className="lg:col-span-2 space-y-8">
+            <UserManagementTable />
+          </div>
+        </div>
 
-        <UserManagementTable />
         <AuditLogsTable logs={auditLogs} />
       </div>
     </div>
   )
 }
 
-function StatCard({ title, value }: { title: string; value: number | string }) {
+function StatCard({ title, value, icon }: { title: string; value: number | string, icon: React.ReactNode }) {
   return (
-    <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9] flex flex-col justify-center items-center">
-      <h3 className="text-[#6B5E4C] text-sm uppercase tracking-wider mb-2">{title}</h3>
-      <p className="text-4xl font-serif text-[#2C241B]">{value}</p>
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-[#E1D8C9] flex flex-col hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+        <h3 className="text-stone-500 text-xs font-bold uppercase tracking-wider leading-tight w-2/3">{title}</h3>
+        <div className="p-2 bg-stone-50 rounded-lg border border-stone-100">
+          {icon}
+        </div>
+      </div>
+      <p className="text-3xl font-serif text-[#2C241B] font-bold mt-auto">{value}</p>
     </div>
   )
 }
