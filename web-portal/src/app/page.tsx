@@ -32,6 +32,12 @@ export default function Home() {
   };
 
   const handleRoleSelect = (role: string) => {
+    if (session) {
+      if (role === "STUDENT") router.push("/router?role=STUDENT");
+      else if (role === "TEACHER") router.push("/staff");
+      else if (role === "ADMIN") router.push("/admin");
+      return;
+    }
     setSelectedRole(role);
     setPin("");
     setPinError("");
