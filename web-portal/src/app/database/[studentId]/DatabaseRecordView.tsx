@@ -288,7 +288,19 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
           </div>
         </header>
 
-        {showIdCard && <IdCardModal onClose={() => setShowIdCard(false)} profile={d.rawProfile} user={{name: d.name}} />}
+        {showIdCard && (
+          <IdCardModal 
+            onClose={() => setShowIdCard(false)} 
+            profile={{
+              studentId: d.studentId,
+              imageUrl: d.personalDetails?.imageUrl,
+              address: d.personalDetails?.address,
+              phone: d.personalDetails?.phone,
+              cohorts: d.cohorts
+            }} 
+            user={{name: d.name}} 
+          />
+        )}
 
         <div className="flex gap-4 mb-8 border-b border-[#E1D8C9]">
           <button 
