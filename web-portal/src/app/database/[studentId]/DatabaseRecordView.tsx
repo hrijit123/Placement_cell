@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle, AlertCircle, Clock, Plus, Trash2, Upload, ExternalLink } from "lucide-react";
+import { CheckCircle, AlertCircle, Clock, Plus, Trash2, Upload, ExternalLink, UserSquare } from "lucide-react";
 
 const parseVerifiedField = (val: string | null) => {
   if (!val) return { value: "", status: "NONE" };
@@ -42,6 +42,7 @@ const IdCardModal = ({ onClose, profile, user }: { onClose: () => void, profile:
             
             <div className="w-full text-xs text-[#3E362E] space-y-1 bg-[#FAF8F3] p-3 rounded">
               <p><span className="font-semibold">Class:</span> {profile.cohorts?.[0]?.name || "Not Assigned"}</p>
+              <p><span className="font-semibold">Phone:</span> {profile.phone || "N/A"}</p>
               <p><span className="font-semibold">Address:</span> {profile.address || "N/A"}</p>
             </div>
           </div>
@@ -171,6 +172,7 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
         setEditForm({
           headline: data.personalDetails.headline || "",
           address: data.personalDetails.address || "",
+          phone: data.personalDetails.phone || "",
           languages: data.personalDetails.languages || "",
           hobbies: data.personalDetails.hobbies || "",
           vocation: data.personalDetails.vocation || "",
@@ -267,8 +269,16 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowIdCard(true)} className="px-4 py-2 border border-[#2D4A22] text-[#2D4A22] rounded text-sm font-semibold hover:bg-[#FAF8F3] transition-colors">
-              Generate ID Card
+            {!isEditing && (
+              <button 
+                onClick={() => { setActiveTab("transcripts"); setIsEditing(true); }} 
+                className="px-4 py-2 bg-stone-100 border border-stone-200 text-stone-700 rounded text-sm font-semibold hover:bg-stone-200 transition-colors"
+              >
+                Edit Profile
+              </button>
+            )}
+            <button onClick={() => setShowIdCard(true)} className="px-4 py-2 bg-[#2D4A22] text-white rounded text-sm font-semibold hover:bg-[#1f3418] transition-colors flex items-center gap-2 shadow-sm">
+              <UserSquare className="w-4 h-4" /> View ID Card
             </button>
             {role !== "STUDENT" && (
               <a href="/database" className="px-4 py-2 border border-[#E1D8C9] rounded text-sm hover:bg-white transition-colors">
@@ -316,6 +326,7 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {[
                 { key: 'headline', label: 'Headline' },
+                { key: 'phone', label: 'Phone Number' },
                 { key: 'address', label: 'Address' },
                 { key: 'languages', label: 'Languages' },
                 { key: 'hobbies', label: 'Hobbies' },

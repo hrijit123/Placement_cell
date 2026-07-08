@@ -102,6 +102,7 @@ model Profile {
   headline       String?
   imageUrl       String?
   address        String?
+  phone          String?
   languages      String? // comma separated
   hobbies        String?
   vocation       String? // Vocational interests/training

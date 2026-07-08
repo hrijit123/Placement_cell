@@ -143,7 +143,9 @@ export async function GET(
       isRedacted,
       personalDetails: {
         headline: studentProfile.headline,
+        imageUrl: studentProfile.imageUrl,
         address: studentProfile.address,
+        phone: studentProfile.phone,
         languages: studentProfile.languages,
         hobbies: studentProfile.hobbies,
         vocation: studentProfile.vocation,

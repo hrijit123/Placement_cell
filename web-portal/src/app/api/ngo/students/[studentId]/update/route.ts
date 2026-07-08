@@ -60,6 +60,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
     const updatedData: any = {
       headline: data.headline !== undefined ? data.headline : profile.headline,
       address: data.address !== undefined ? data.address : profile.address,
+      phone: data.phone !== undefined ? data.phone : profile.phone,
       languages: data.languages !== undefined ? data.languages : profile.languages,
       hobbies: data.hobbies !== undefined ? data.hobbies : profile.hobbies,
       vocation: data.vocation !== undefined ? data.vocation : profile.vocation,
