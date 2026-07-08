@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Placement Tracker",
+  title: "Deeds Connect",
   description:
-    "NGO placement cell portal — student records, attendance, and placement tracking for specially abled candidates.",
+    "Deeds Connect — DEEDS Public Charitable Trust's portal for student records, attendance, and placement tracking for specially abled candidates.",
 };
 
 export default function RootLayout({

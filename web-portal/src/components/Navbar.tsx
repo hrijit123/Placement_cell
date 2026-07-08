@@ -12,8 +12,14 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <Link href="/" className="text-2xl font-serif text-stone-900 font-bold hover:text-emerald-700 transition-colors">
-              Placement Tracker
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <span className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-lg" aria-hidden="true">🌱</span>
+              <span className="flex flex-col leading-tight">
+                <span className="text-xl font-serif text-stone-900 font-bold group-hover:text-emerald-700 transition-colors">
+                  Deeds Connect
+                </span>
+                <span className="text-[11px] text-stone-500 -mt-0.5">Empowering Specially Abled</span>
+              </span>
             </Link>
           </div>
 
