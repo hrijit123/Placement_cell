@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   // --- ACCESS CONTROL ---
   if (role === "TEACHER") {
     const actor = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+      where: { email: session?.user?.email! },
       include: { cohortsLed: true }
     });
     

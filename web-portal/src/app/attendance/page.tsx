@@ -31,7 +31,7 @@ export default async function AttendancePage() {
   } else {
     // TEACHER role: only fetch students in their cohorts
     const teacherUser = await prisma.user.findUnique({
-      where: { email: session.user.email! },
+      where: { email: session?.user?.email! },
       include: { cohortsLed: true }
     });
     

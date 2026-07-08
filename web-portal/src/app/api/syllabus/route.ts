@@ -10,7 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email! } });
+  const user = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let syllabi;
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { email: session.user.email! } });
+    const user = await prisma.user.findUnique({ where: { email: session?.user?.email! } });
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { cohortId, month, targetChapters, completedChapters, pendingChapters } = await req.json();

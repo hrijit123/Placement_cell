@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
+      where: { email: session?.user?.email! }
     });
 
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email! }
+      where: { email: session?.user?.email! }
     });
 
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
