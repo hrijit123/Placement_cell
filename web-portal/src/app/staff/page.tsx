@@ -39,6 +39,17 @@ export default async function StaffDashboard() {
             <h2 className="text-3xl font-serif font-semibold text-[#2C241B] mb-4">Student Database</h2>
             <p className="text-[#6B5E4C]">Search by ID to view transcripts and update the placement & interview tracker.</p>
           </Link>
+
+          {/* Syllabus Tracker */}
+          <Link href="/staff/syllabus" className="group bg-white border border-[#E1D8C9] rounded-xl p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-[#6B5E4C] transition-all duration-300 col-span-1 md:col-span-2 lg:col-span-1">
+            <div className="w-24 h-24 bg-[#FAF8F3] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#6B5E4C] group-hover:text-white transition-colors duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-serif font-semibold text-[#2C241B] mb-4">Syllabus Tracker</h2>
+            <p className="text-[#6B5E4C]">Log monthly syllabus progress for your assigned cohorts.</p>
+          </Link>
         </div>
       </div>
     </div>

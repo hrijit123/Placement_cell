@@ -17,6 +17,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
+  // --- ACCESS CONTROL ---
+  if (role === "TEACHER") {
+    const actor = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      include: { cohortsLed: true }
+    });
+    
+    const targetStudentProfile = await prisma.profile.findUnique({
+      where: { userId },
+      include: { cohorts: true }
+    });
+    
+    if (!targetStudentProfile) {
+      return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
+    }
+
+    const teacherCohortIds = actor?.cohortsLed.map(c => c.id) || [];
+    const studentCohortIds = targetStudentProfile.cohorts.map(c => c.id) || [];
+    const hasAccess = studentCohortIds.some(id => teacherCohortIds.includes(id));
+
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Cannot mark attendance for students outside your cohort." }, { status: 403 });
+    }
+  }
+
   const attendance = await prisma.attendance.create({
     data: {
       userId,

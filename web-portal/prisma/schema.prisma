@@ -83,6 +83,10 @@ model User {
   accessLogs       AccessLog[]        @relation("UserAccessLogs")
   notifications    Notification[]     @relation("UserNotifications")
   auditLogs        RecordAuditLog[]   @relation("UserAuditLogs")
+
+  teacherProfile TeacherProfile?
+  syllabusTracking SyllabusTracker[] @relation("TeacherSyllabus")
+  progressReports  StudentProgressReport[] @relation("TeacherProgressReports")
 }
 
 model Profile {
@@ -123,6 +127,7 @@ model Profile {
   careerTrack    CareerRecord[]
   notifications  Notification[]
   auditLogs      RecordAuditLog[]
+  progressReports StudentProgressReport[]
 }
 
 model Cohort {
@@ -134,6 +139,8 @@ model Cohort {
   teacher     User      @relation("TeacherCohorts", fields: [teacherId], references: [id], onDelete: Restrict)
   
   students    Profile[] @relation("StudentCohorts")
+
+  syllabusTracking SyllabusTracker[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -260,4 +267,57 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model TeacherProfile {
+  id                        String    @id @default(uuid())
+  userId                    String    @unique
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  phoneNumber               String?
+  address                   String?
+  designation               String?
+  dob                       DateTime?
+  qualification             String?
+  joiningDate               DateTime?
+  probationCompletionDate   DateTime?
+  department                String?
+  project                   String?
+  salary                    Float?
+  lastIncrementHistory      String?   @db.Text
+  additionalTasks           String?   @db.Text
+  workingHours              String?
+  subject                   String?
+  classesTaking             String?
+}
+
+model SyllabusTracker {
+  id                String    @id @default(uuid())
+  cohortId          String
+  cohort            Cohort    @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  teacherId         String
+  teacher           User      @relation("TeacherSyllabus", fields: [teacherId], references: [id], onDelete: Restrict)
+  
+  month             String    // e.g., "August 2026"
+  targetChapters    String?   @db.Text
+  completedChapters String?   @db.Text
+  pendingChapters   String?   @db.Text
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model StudentProgressReport {
+  id                  String    @id @default(uuid())
+  profileId           String
+  profile             Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  teacherId           String
+  teacher             User      @relation("TeacherProgressReports", fields: [teacherId], references: [id], onDelete: Restrict)
+  
+  month               String    // e.g., "August 2026"
+  academicPerformance String?   @db.Text
+  behavioralNotes     String?   @db.Text
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }

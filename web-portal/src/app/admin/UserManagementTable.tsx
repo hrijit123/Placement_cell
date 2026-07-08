@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import AssignCohortModal from "./AssignCohortModal";
+import TeacherHRModal from "./TeacherHRModal";
 
 type User = {
   id: string;
@@ -9,6 +11,8 @@ type User = {
   role: string;
   status: string;
   createdAt: string;
+  profile?: { id: string };
+  teacherProfile?: any;
 };
 
 export default function UserManagementTable() {
@@ -19,6 +23,8 @@ export default function UserManagementTable() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newStatus, setNewStatus] = useState<string>("");
+  const [cohortModalProfileId, setCohortModalProfileId] = useState<string | null>(null);
+  const [hrModalTeacher, setHrModalTeacher] = useState<User | null>(null);
 
   const fetchUsers = useCallback(async (p: number) => {
     setLoading(true);
@@ -109,6 +115,22 @@ export default function UserManagementTable() {
                   </span>
                 </td>
                 <td className="py-4 px-4 text-right space-x-2">
+                  {u.role === 'STUDENT' && u.profile?.id && (
+                    <button 
+                      onClick={() => setCohortModalProfileId(u.profile!.id)}
+                      className="text-xs font-semibold text-indigo-600 hover:underline border border-indigo-200 px-2 py-1 rounded"
+                    >
+                      Cohorts
+                    </button>
+                  )}
+                  {u.role === 'TEACHER' && (
+                    <button 
+                      onClick={() => setHrModalTeacher(u)}
+                      className="text-xs font-semibold text-emerald-600 hover:underline border border-emerald-200 px-2 py-1 rounded"
+                    >
+                      HR Record
+                    </button>
+                  )}
                   {u.status !== 'ACTIVE' && (
                     <button 
                       onClick={() => { setSelectedUser(u); setNewStatus("ACTIVE"); setModalOpen(true); }}
@@ -183,6 +205,20 @@ export default function UserManagementTable() {
             </div>
           </div>
         </div>
+      )}
+
+      {cohortModalProfileId && (
+        <AssignCohortModal 
+          profileId={cohortModalProfileId} 
+          onClose={() => setCohortModalProfileId(null)} 
+        />
+      )}
+
+      {hrModalTeacher && (
+        <TeacherHRModal 
+          teacher={hrModalTeacher} 
+          onClose={() => { setHrModalTeacher(null); fetchUsers(page); }} 
+        />
       )}
     </section>
   );

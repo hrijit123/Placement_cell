@@ -78,7 +78,7 @@ const FileUploader = ({ onUpload, label }: { onUpload: (url: string) => void, la
 
 export default function DatabaseRecordView({ studentId, role }: { studentId: string, role?: string }) {
   const [state, setState] = useState<any>({ status: "loading" });
-  const [activeTab, setActiveTab] = useState<"transcripts" | "tracker">("transcripts");
+  const [activeTab, setActiveTab] = useState<"transcripts" | "tracker" | "reports">("transcripts");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   
@@ -96,6 +96,14 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
     startDate: new Date().toISOString().split("T")[0],
     nextMove: ""
   });
+  const [isSavingTracker, setIsSavingTracker] = useState(false);
+
+  const [reportForm, setReportForm] = useState({
+    month: new Date().toLocaleString('default', { month: 'long', year: 'numeric' }),
+    academicPerformance: "",
+    behavioralNotes: ""
+  });
+  const [isSavingReport, setIsSavingReport] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -153,13 +161,30 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
 
   const saveTracker = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingTracker) return;
+    setIsSavingTracker(true);
     await fetch(`/api/ngo/students/${encodeURIComponent(studentId)}/tracker`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(trackerForm)
     });
     setTrackerForm({ ...trackerForm, company: "", role: "", salary: "" });
-    load();
+    await load();
+    setIsSavingTracker(false);
+  };
+
+  const saveReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSavingReport) return;
+    setIsSavingReport(true);
+    await fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...reportForm, profileId: state.data?.id })
+    });
+    setReportForm({ ...reportForm, academicPerformance: "", behavioralNotes: "" });
+    await load();
+    setIsSavingReport(false);
   };
 
   const verifyField = async (target: string, status: string, recordId?: string) => {
@@ -210,6 +235,12 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
             className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "tracker" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
           >
             Placement Tracker
+          </button>
+          <button 
+            onClick={() => setActiveTab("reports")}
+            className={`px-6 py-3 font-semibold text-lg border-b-2 ${activeTab === "reports" ? "border-[#2C241B] text-[#2C241B]" : "border-transparent text-[#8B7D6B] hover:text-[#2C241B]"}`}
+          >
+            Progress Reports
           </button>
         </div>
 
@@ -458,8 +489,8 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                   </div>
                 )}
               </div>
-              <button type="submit" className="bg-[#2C241B] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-black">
-                Save Record
+              <button disabled={isSavingTracker} type="submit" className="bg-[#2C241B] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-black disabled:opacity-50">
+                {isSavingTracker ? "Saving..." : "Save Record"}
               </button>
             </form>
 
@@ -502,6 +533,63 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                             {ct.nextMove}
                           </div>
                         )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PROGRESS REPORTS TAB */}
+        {activeTab === "reports" && (
+          <div className="space-y-8">
+            {role === "TEACHER" && (
+              <form onSubmit={saveReport} className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
+                <h2 className="text-xl font-serif text-[#2C241B] mb-4">Add Progress Report</h2>
+                <div className="grid grid-cols-1 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Month / Period</label>
+                    <input required value={reportForm.month} onChange={e => setReportForm({...reportForm, month: e.target.value})} className="w-full border p-2 rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Academic Performance</label>
+                    <textarea required value={reportForm.academicPerformance} onChange={e => setReportForm({...reportForm, academicPerformance: e.target.value})} className="w-full border p-2 rounded" rows={3} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Behavioral Notes</label>
+                    <textarea required value={reportForm.behavioralNotes} onChange={e => setReportForm({...reportForm, behavioralNotes: e.target.value})} className="w-full border p-2 rounded" rows={3} />
+                  </div>
+                </div>
+                <button disabled={isSavingReport} type="submit" className="bg-[#2C241B] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-black disabled:opacity-50">
+                  {isSavingReport ? "Saving..." : "Save Report"}
+                </button>
+              </form>
+            )}
+
+            <div className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
+              <h2 className="text-xl font-serif text-[#2C241B] mb-6">Progress Reports History</h2>
+              
+              <div className="space-y-4">
+                {d.progressReports?.length === 0 ? (
+                  <p className="text-stone-500">No progress reports found.</p>
+                ) : d.progressReports?.map((pr: any) => (
+                  <div key={pr.id} className="border border-[#E1D8C9] p-4 rounded bg-[#FAF8F3]">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-semibold text-stone-800">{pr.month}</h3>
+                        <p className="text-xs text-stone-500">By {pr.teacher?.name} on {new Date(pr.createdAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      <div>
+                        <span className="block text-stone-500 uppercase text-[10px] font-semibold tracking-wider">Academic Performance</span>
+                        <p className="text-sm text-stone-800 whitespace-pre-wrap">{pr.academicPerformance}</p>
+                      </div>
+                      <div>
+                        <span className="block text-stone-500 uppercase text-[10px] font-semibold tracking-wider">Behavioral Notes</span>
+                        <p className="text-sm text-stone-800 whitespace-pre-wrap">{pr.behavioralNotes}</p>
                       </div>
                     </div>
                   </div>

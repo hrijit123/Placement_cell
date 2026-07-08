@@ -13,18 +13,51 @@ export default async function AttendancePage() {
     redirect("/");
   }
 
-  // Fetch all students (and their profiles for StudentID)
-  const students = await prisma.user.findMany({
-    where: { role: "STUDENT" },
-    include: {
-      profile: true,
-      attendance: {
-        orderBy: { date: 'desc' },
-        take: 5
-      }
-    },
-    orderBy: { name: 'asc' }
-  });
+  // Fetch students based on role
+  let students;
+  
+  if (role === "ADMIN") {
+    students = await prisma.user.findMany({
+      where: { role: "STUDENT" },
+      include: {
+        profile: true,
+        attendance: {
+          orderBy: { date: 'desc' },
+          take: 5
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+  } else {
+    // TEACHER role: only fetch students in their cohorts
+    const teacherUser = await prisma.user.findUnique({
+      where: { email: session.user.email! },
+      include: { cohortsLed: true }
+    });
+    
+    const cohortIds = teacherUser?.cohortsLed.map(c => c.id) || [];
+    
+    students = await prisma.user.findMany({
+      where: {
+        role: "STUDENT",
+        profile: {
+          cohorts: {
+            some: {
+              id: { in: cohortIds }
+            }
+          }
+        }
+      },
+      include: {
+        profile: true,
+        attendance: {
+          orderBy: { date: 'desc' },
+          take: 5
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] p-10">
