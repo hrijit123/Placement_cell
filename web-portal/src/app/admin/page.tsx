@@ -32,7 +32,7 @@ export default async function AdminDashboard() {
   sixMonthsAgo.setDate(1)
   sixMonthsAgo.setHours(0, 0, 0, 0)
 
-  const [funnelRaw, employersRaw, attendanceRaw, recentApps, placedStudents, workingNow, salaryAgg] = await Promise.all([
+  const [funnelRaw, employersRaw, attendanceRaw, recentApps, placedStudents, workingNow, salaryAgg, activeStudents, placementRecords] = await Promise.all([
     prisma.careerRecord.groupBy({ by: ['interviewStatus'], where: { recordType: 'INTERVIEW' }, _count: { _all: true } }),
     prisma.careerRecord.groupBy({
       by: ['company'],
@@ -51,7 +51,12 @@ export default async function AdminDashboard() {
       where: { recordType: 'INTERVIEW', interviewStatus: 'OFFER_ACCEPTED' }
     }),
     prisma.careerRecord.count({ where: { recordType: 'PLACEMENT', placementStatus: 'WORKING' } }),
-    prisma.careerRecord.aggregate({ _avg: { salary: true } })
+    prisma.careerRecord.aggregate({ _avg: { salary: true } }),
+    prisma.user.count({ where: { role: 'STUDENT', status: 'ACTIVE' } }),
+    prisma.careerRecord.findMany({
+      where: { recordType: 'PLACEMENT' },
+      select: { profileId: true, startDate: true, createdAt: true }
+    })
   ])
 
   const STATUS_ORDER = [
@@ -84,6 +89,25 @@ export default async function AdminDashboard() {
   const placementRate = totalStudents > 0 ? Math.round((placedStudents.length / totalStudents) * 100) : 0
   const avgSalary = salaryAgg._avg.salary
 
+  // Overall attendance %: Present + Late over all non-leave records.
+  const attCount = (status: string) => attendanceRaw.find((a: any) => a.status === status)?._count._all ?? 0
+  const attTotal = attendanceRaw.reduce((sum: number, a: any) => sum + a._count._all, 0)
+  const attDenominator = attTotal - attCount('LEAVE')
+  const attendancePct = attDenominator > 0
+    ? Math.round(((attCount('PRESENT') + attCount('LATE')) / attDenominator) * 1000) / 10
+    : null
+
+  // Alumni employed year-wise: distinct students placed, by placement start year.
+  const alumniYearMap = new Map<string, Set<string>>()
+  for (const p of placementRecords) {
+    const year = String(new Date(p.startDate ?? p.createdAt).getFullYear())
+    if (!alumniYearMap.has(year)) alumniYearMap.set(year, new Set())
+    alumniYearMap.get(year)!.add(p.profileId)
+  }
+  const alumniByYear = [...alumniYearMap.entries()]
+    .map(([year, profiles]) => ({ year, count: profiles.size }))
+    .sort((a, b) => a.year.localeCompare(b.year))
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
       <div className="max-w-6xl mx-auto">
@@ -104,17 +128,22 @@ export default async function AdminDashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <StatCard title="Total Students" value={totalStudents} />
+          <StatCard title="Active Students" value={activeStudents} />
+          <StatCard title="Attendance %" value={attendancePct != null ? `${attendancePct}%` : '—'} />
           <StatCard title="Active Recruiters" value={totalRecruiters} />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <StatCard title="Jobs Posted" value={totalJobs} />
           <StatCard title="Applications Logged" value={totalApplications} />
+          <StatCard title="Placement Rate" value={`${placementRate}%`} />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <StatCard title="Placement Rate" value={`${placementRate}%`} />
+          <StatCard title="Students Placed" value={placedStudents.length} />
           <StatCard title="Currently Employed" value={workingNow} />
           <StatCard title="Avg. Placement Salary" value={avgSalary != null ? `₹${Math.round(avgSalary).toLocaleString('en-IN')}` : '—'} />
         </div>
 
-        <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} />
+        <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} alumni={alumniByYear} />
 
         <section className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9]">
           <h2 className="text-2xl font-serif text-[#2C241B] mb-6">Recent Applications Record</h2>

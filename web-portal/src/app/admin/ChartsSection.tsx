@@ -27,6 +27,7 @@ const ATTENDANCE_COLORS: Record<string, string> = {
   PRESENT: GREEN,
   LATE: TAN,
   ABSENT: RUST,
+  LEAVE: BROWN,
 };
 
 export interface FunnelDatum {
@@ -45,17 +46,23 @@ export interface MonthlyDatum {
   month: string; // e.g. "Feb 2026"
   applications: number;
 }
+export interface AlumniDatum {
+  year: string; // e.g. "2026"
+  count: number;
+}
 
 export default function ChartsSection({
   funnel,
   topEmployers,
   attendance,
   monthly,
+  alumni = [],
 }: {
   funnel: FunnelDatum[];
   topEmployers: EmployerDatum[];
   attendance: AttendanceDatum[];
   monthly: MonthlyDatum[];
+  alumni?: AlumniDatum[];
 }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
@@ -156,6 +163,23 @@ export default function ChartsSection({
                 dot={{ fill: GREEN, r: 4 }}
               />
             </LineChart>
+          </ResponsiveContainer>
+        )}
+      </ChartCard>
+
+      {/* Alumni employed year-wise */}
+      <ChartCard title="Alumni Employed" subtitle="Students placed, by placement start year">
+        {alumni.length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={alumni} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CREAM_BORDER} />
+              <XAxis dataKey="year" tick={{ fill: BROWN, fontSize: 12 }} />
+              <YAxis allowDecimals={false} tick={{ fill: BROWN, fontSize: 12 }} />
+              <Tooltip cursor={{ fill: "#FAF8F3" }} />
+              <Bar dataKey="count" name="Alumni employed" fill={GREEN} radius={[3, 3, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         )}
       </ChartCard>
