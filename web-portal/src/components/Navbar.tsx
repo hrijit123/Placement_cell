@@ -15,10 +15,15 @@ export default function Navbar() {
     <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/90 border-b border-[#E1D8C9] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-2">
-            <Heart className="w-6 h-6 text-[#2D4A22] fill-[#2D4A22]" />
-            <Link href="/" className="font-serif font-bold text-[#2C241B] text-xl hover:opacity-80 transition-opacity">
-              DEEDS Connect
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <span className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-lg" aria-hidden="true">🌱</span>
+              <span className="flex flex-col leading-tight">
+                <span className="text-xl font-serif text-stone-900 font-bold group-hover:text-emerald-700 transition-colors">
+                  Deeds Connect
+                </span>
+                <span className="text-[11px] text-stone-500 -mt-0.5">Empowering Specially Abled</span>
+              </span>
             </Link>
           </div>
 

@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { text } = await req.json();
 
-    if (!text) {
-      return NextResponse.json({ error: "Text is required" }, { status: 400 });
+    if (!text || typeof text !== "string" || text.length > 10000) {
+      return NextResponse.json({ error: "Text is required (max 10,000 characters)" }, { status: 400 });
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

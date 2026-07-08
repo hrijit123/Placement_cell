@@ -106,7 +106,7 @@ async function main() {
       const date = new Date()
       date.setDate(date.getDate() - d)
       
-      let status = AttendanceStatus.PRESENT
+      let status: AttendanceStatus = AttendanceStatus.PRESENT
       let notes = null
       
       const rand = Math.random()
