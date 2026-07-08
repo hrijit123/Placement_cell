@@ -87,16 +87,16 @@ export default function SyllabusClient({ role, cohorts }: { role: string, cohort
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-3">
-                  <div>
-                    <span className="block font-semibold text-stone-500 uppercase text-[10px]">Target</span>
+                  <div className="text-stone-800 font-medium">
+                    <span className="block font-bold text-stone-700 uppercase text-xs mb-1 tracking-wide">Target</span>
                     {s.targetChapters}
                   </div>
-                  <div>
-                    <span className="block font-semibold text-green-600 uppercase text-[10px]">Completed</span>
+                  <div className="text-stone-800 font-medium">
+                    <span className="block font-bold text-emerald-700 uppercase text-xs mb-1 tracking-wide">Completed</span>
                     {s.completedChapters}
                   </div>
-                  <div>
-                    <span className="block font-semibold text-orange-600 uppercase text-[10px]">Pending</span>
+                  <div className="text-stone-800 font-medium">
+                    <span className="block font-bold text-amber-700 uppercase text-xs mb-1 tracking-wide">Pending</span>
                     {s.pendingChapters}
                   </div>
                 </div>
