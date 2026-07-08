@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import UserManagementTable from "./UserManagementTable"
 import AuditLogsTable from "./AuditLogsTable"
+import ChartsSection from "./ChartsSection"
 import { Users, UserCheck, CalendarCheck, Briefcase, Building, GraduationCap, CheckCircle } from "lucide-react"
 
 export default async function AdminDashboard() {
@@ -35,6 +36,26 @@ export default async function AdminDashboard() {
     })
   ])
 
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+  sixMonthsAgo.setDate(1)
+  sixMonthsAgo.setHours(0, 0, 0, 0)
+
+  const [funnelRaw, employersRaw, recentApps] = await Promise.all([
+    prisma.careerRecord.groupBy({ by: ['interviewStatus'], where: { recordType: 'INTERVIEW' }, _count: { _all: true } }),
+    prisma.careerRecord.groupBy({
+      by: ['company'],
+      where: { recordType: 'PLACEMENT' },
+      _count: { _all: true },
+      orderBy: { _count: { company: 'desc' } },
+      take: 5
+    }),
+    prisma.careerRecord.findMany({
+      where: { recordType: 'INTERVIEW', createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true }
+    })
+  ])
+
   const presentCount = allAttendance.filter(a => a.status === "PRESENT").length;
   const attendancePct = allAttendance.length ? ((presentCount / allAttendance.length) * 100).toFixed(1) : 0;
 
@@ -55,6 +76,50 @@ export default async function AdminDashboard() {
     year,
     count: alumniByYear[year]
   })).sort((a, b) => Number(b.year) - Number(a.year));
+
+  const STATUS_ORDER = [
+    'APPLIED', 'SCHEDULED', 'ATTENDED', 'NO_SHOW',
+    'OFFER_EXTENDED', 'OFFER_ACCEPTED', 'OFFER_REJECTED_BY_STUDENT', 'REJECTED_BY_COMPANY'
+  ]
+  const funnel = STATUS_ORDER
+    .map(status => ({
+      status: status.replaceAll('_', ' '),
+      count: funnelRaw.find((f: any) => f.interviewStatus === status)?._count._all ?? 0
+    }))
+    .filter((f: any) => f.count > 0)
+
+  const topEmployers = employersRaw.map((e: any) => ({ company: e.company, placements: e._count._all }))
+  
+  // Create attendance pie chart format directly from allAttendance
+  let present = 0;
+  let absent = 0;
+  let late = 0;
+  let leave = 0;
+  allAttendance.forEach(a => {
+    if (a.status === 'PRESENT') present++;
+    if (a.status === 'ABSENT') absent++;
+    if (a.status === 'LATE') late++;
+    if (a.status === 'LEAVE') leave++;
+  });
+  const attendance = [
+    { status: 'PRESENT', count: present },
+    { status: 'ABSENT', count: absent },
+    { status: 'LATE', count: late },
+    { status: 'LEAVE', count: leave },
+  ].filter(a => a.count > 0);
+
+  const monthly: { month: string; applications: number }[] = []
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(sixMonthsAgo)
+    d.setMonth(d.getMonth() + i)
+    const label = d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+    monthly.push({
+      month: label,
+      applications: recentApps.filter((a: any) =>
+        a.createdAt.getMonth() === d.getMonth() && a.createdAt.getFullYear() === d.getFullYear()
+      ).length
+    })
+  }
 
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#3E362E] p-10 font-sans">
@@ -77,6 +142,8 @@ export default async function AdminDashboard() {
           <StatCard title="Students Placed" value={studentsPlaced} icon={<Briefcase className="w-5 h-5 text-emerald-600" />} />
           <StatCard title="Active Employers" value={activeEmployers} icon={<Building className="w-5 h-5 text-indigo-600" />} />
         </div>
+
+        <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-[#E1D8C9]">
