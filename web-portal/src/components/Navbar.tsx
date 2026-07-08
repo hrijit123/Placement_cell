@@ -67,12 +67,12 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => signIn("google")}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors shadow-sm"
+              <Link
+                href="/"
+                className="bg-[#2D4A22] hover:bg-[#1f3418] text-white px-5 py-2 rounded-full text-sm font-medium transition-colors shadow-sm"
               >
-                Sign in with Google
-              </button>
+                Sign In
+              </Link>
             )}
           </div>
         </div>

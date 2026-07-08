@@ -38,21 +38,19 @@ export default function Home() {
     setPinVerified(role === "STUDENT");
   };
 
-  const verifyPin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsVerifying(true);
     setPinError("");
     try {
-      const res = await fetch("/api/auth/verify-pin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: selectedRole, pin })
+      const res = await signIn("credentials", {
+        redirect: false,
+        email: pin,
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPinVerified(true);
+      if (res?.error) {
+        setPinError("Invalid email or user not found");
       } else {
-        setPinError(data.error || "Invalid PIN");
+        router.push(`/router?role=${selectedRole}`);
       }
     } catch (err) {
       setPinError("Network error. Try again.");
@@ -71,30 +69,23 @@ export default function Home() {
             <h2 className="text-3xl font-serif font-semibold text-[#2C241B] mb-2">{selectedRole} Portal</h2>
             <p className="text-[#6B5E4C] mb-8 text-center">Sign in to access your {selectedRole.toLowerCase()} dashboard and records.</p>
             
-            {!pinVerified ? (
-              <form onSubmit={verifyPin} className="w-full flex flex-col items-center mb-4">
-                <div className="w-full relative mb-4">
-                  <Lock className="absolute left-3 top-3.5 w-5 h-5 text-stone-400" />
-                  <input 
-                    type="password" 
-                    value={pin}
-                    onChange={e => setPin(e.target.value)}
-                    placeholder={`Enter ${selectedRole} PIN`}
-                    className="w-full pl-10 pr-4 py-3 border border-stone-300 rounded-xl outline-none focus:border-[#2D4A22] focus:ring-1 focus:ring-[#2D4A22]"
-                    required
-                  />
-                </div>
-                {pinError && <p className="text-red-600 text-sm mb-4">{pinError}</p>}
-                <button type="submit" disabled={isVerifying} className="w-full bg-[#2C241B] text-white py-3 rounded-xl font-semibold hover:bg-black transition-colors disabled:bg-stone-400">
-                  {isVerifying ? "Verifying..." : "Unlock Portal"}
-                </button>
-              </form>
-            ) : (
-              <button onClick={() => signIn("google", { callbackUrl: `/router?role=${selectedRole}` })} className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-4 rounded-xl font-medium transition-all shadow-sm mb-4">
-                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-6 h-6" />
-                Continue with Google
+            <form onSubmit={handleLogin} className="w-full flex flex-col items-center mb-4">
+              <div className="w-full relative mb-4">
+                <Lock className="absolute left-3 top-3.5 w-5 h-5 text-stone-400" />
+                <input 
+                  type="email" 
+                  value={pin}
+                  onChange={e => setPin(e.target.value)}
+                  placeholder={`Enter your mock email (e.g., admin@deeds.org)`}
+                  className="w-full pl-10 pr-4 py-3 border border-stone-300 rounded-xl outline-none focus:border-[#2D4A22] focus:ring-1 focus:ring-[#2D4A22]"
+                  required
+                />
+              </div>
+              {pinError && <p className="text-red-600 text-sm mb-4">{pinError}</p>}
+              <button type="submit" disabled={isVerifying} className="w-full bg-[#2C241B] text-white py-3 rounded-xl font-semibold hover:bg-black transition-colors disabled:bg-stone-400">
+                {isVerifying ? "Signing In..." : "Sign In"}
               </button>
-            )}
+            </form>
             
             <button onClick={() => handleRoleSelect("")} className="text-[#8B7D6B] hover:text-[#2C241B] text-sm underline underline-offset-4 font-medium transition-colors mt-2">
               Go back
