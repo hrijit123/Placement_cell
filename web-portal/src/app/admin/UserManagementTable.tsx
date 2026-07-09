@@ -25,6 +25,7 @@ export default function UserManagementTable() {
   const [newStatus, setNewStatus] = useState<string>("");
   const [cohortModalProfileId, setCohortModalProfileId] = useState<string | null>(null);
   const [hrModalTeacher, setHrModalTeacher] = useState<User | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const fetchUsers = useCallback(async (p: number) => {
     setLoading(true);
@@ -64,6 +65,25 @@ export default function UserManagementTable() {
       console.error(e);
     } finally {
       setModalOpen(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedUser) return;
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchUsers(page);
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to delete user");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleteModalOpen(false);
     }
   };
 
@@ -155,6 +175,12 @@ export default function UserManagementTable() {
                       Ban
                     </button>
                   )}
+                  <button 
+                    onClick={() => { setSelectedUser(u); setDeleteModalOpen(true); }}
+                    className="text-xs font-semibold text-red-800 hover:underline"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -201,6 +227,31 @@ export default function UserManagementTable() {
                 className="px-4 py-2 rounded text-sm font-semibold bg-[#2D4A22] text-white hover:bg-[#3d632e]"
               >
                 Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full border border-[#E1D8C9]" role="dialog" aria-modal="true">
+            <h3 className="text-lg font-serif font-bold text-red-700 mb-2">Delete User</h3>
+            <p className="text-sm text-[#6B5E4C] mb-6">
+              Are you sure you want to PERMANENTLY delete <strong>{selectedUser?.name || selectedUser?.email}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setDeleteModalOpen(false)}
+                className="px-4 py-2 rounded text-sm font-semibold border border-[#E1D8C9] text-[#6B5E4C] hover:bg-stone-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-4 py-2 rounded text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete User
               </button>
             </div>
           </div>
