@@ -181,8 +181,7 @@ model SyllabusPlan {
   @@unique([teacherId, month, className, subject])
 }
 
-// One row per student per subject per academic year:
-// four internal assessments + two semester exams.
+// One row per student per subject per exam type per academic year.
 model ExamRecord {
   id        String  @id @default(uuid())
   profileId String
@@ -190,21 +189,15 @@ model ExamRecord {
 
   academicYear String // e.g. "2026-27"
   subject      String
-
-  ia1  Float?
-  ia2  Float?
-  ia3  Float?
-  ia4  Float?
-  sem1 Float?
-  sem2 Float?
-
-  iaMax  Float @default(25)  // max marks per internal assessment
-  semMax Float @default(100) // max marks per semester exam
+  examName     String // e.g. "Unit Test 1", "IA1", "Semester 1"
+  
+  marks        Float?
+  maxMarks     Float  @default(100)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([profileId, academicYear, subject])
+  @@unique([profileId, academicYear, subject, examName])
 }
 
 model Cohort {

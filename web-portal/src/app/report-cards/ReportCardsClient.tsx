@@ -27,7 +27,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
   const [searchTerm, setSearchTerm] = useState("");
   const [academicYear, setAcademicYear] = useState(defaultYear());
   const [subject, setSubject] = useState("");
-  const [examType, setExamType] = useState("ia1");
+  const [examName, setExamName] = useState("Unit Test 1");
   const [maxMarks, setMaxMarks] = useState("25");
   
   // profileId -> mark
@@ -46,27 +46,31 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
       return;
     }
     
-    // Extract existing marks for this year + subject + examType
+    // Extract existing marks for this year + subject + examName
     const newMarks: Record<string, string> = {};
     let foundMaxMarks = maxMarks;
 
     students.forEach(s => {
       if (!s.profile) return;
-      const record = s.examRecords.find(r => r.academicYear === academicYear && r.subject.toLowerCase() === subject.toLowerCase());
+      const record = s.examRecords.find(r => 
+        r.academicYear === academicYear && 
+        r.subject.toLowerCase() === subject.toLowerCase() &&
+        r.examName.toLowerCase() === examName.toLowerCase()
+      );
+      
       if (record) {
-        if (record[examType] !== null && record[examType] !== undefined) {
-          newMarks[s.profile.id] = String(record[examType]);
+        if (record.marks !== null && record.marks !== undefined) {
+          newMarks[s.profile.id] = String(record.marks);
         }
-        
-        // Try to sync max marks if existing
-        if (examType.startsWith('ia') && record.iaMax) foundMaxMarks = String(record.iaMax);
-        if (examType.startsWith('sem') && record.semMax) foundMaxMarks = String(record.semMax);
+        if (record.maxMarks) {
+          foundMaxMarks = String(record.maxMarks);
+        }
       }
     });
 
     setMarks(newMarks);
     setMaxMarks(foundMaxMarks);
-    setStatusMsg({ type: 'success', text: `Loaded existing marks for ${subject}` });
+    setStatusMsg({ type: 'success', text: `Loaded existing marks for ${subject} - ${examName}` });
   };
 
   const handleSaveAll = async () => {
@@ -90,7 +94,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
         body: JSON.stringify({
           academicYear,
           subject,
-          examType,
+          examName,
           maxMarks: Number(maxMarks),
           updates
         })
@@ -132,19 +136,13 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">Exam Type</label>
-            <select 
-              value={examType} 
-              onChange={e => setExamType(e.target.value)}
-              className="w-full border border-stone-400 text-stone-900 font-medium rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-stone-600"
-            >
-              <option value="ia1">Internal Assessment 1</option>
-              <option value="ia2">Internal Assessment 2</option>
-              <option value="ia3">Internal Assessment 3</option>
-              <option value="ia4">Internal Assessment 4</option>
-              <option value="sem1">Semester 1 Exam</option>
-              <option value="sem2">Semester 2 Exam</option>
-            </select>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">Exam Name</label>
+            <input 
+              value={examName} 
+              onChange={e => setExamName(e.target.value)}
+              className="w-full border border-stone-400 text-stone-900 font-medium rounded px-3 py-2 text-sm focus:outline-none focus:border-stone-600"
+              placeholder="e.g. Unit Test 1"
+            />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">Max Marks</label>

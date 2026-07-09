@@ -12,14 +12,9 @@ const mark = z.preprocess(
 const ExamSchema = z.object({
   academicYear: z.string().regex(/^\d{4}-\d{2}$/, "Use format 2026-27"),
   subject: z.string().min(1).max(100),
-  ia1: mark,
-  ia2: mark,
-  ia3: mark,
-  ia4: mark,
-  sem1: mark,
-  sem2: mark,
-  iaMax: z.preprocess((v) => (v === "" || v == null ? 25 : Number(v)), z.number().positive()),
-  semMax: z.preprocess((v) => (v === "" || v == null ? 100 : Number(v)), z.number().positive()),
+  examName: z.string().min(1).max(100),
+  marks: mark,
+  maxMarks: z.preprocess((v) => (v === "" || v == null ? 100 : Number(v)), z.number().positive()),
 });
 
 // Returns { viewer, profile, canEdit } or a NextResponse error.
@@ -58,117 +53,102 @@ async function authorize(studentId: string) {
     }
     return { viewer, profile, canEdit: true };
   }
-  if (viewer.role === "ADMIN") {
-    return { viewer, profile, canEdit: true };
-  }
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  return { viewer, profile, canEdit: true }; // Admin
 }
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ studentId: string }> }
-) {
+export async function GET(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
   try {
     const { studentId } = await params;
     const auth = await authorize(studentId);
     if (auth instanceof NextResponse) return auth;
+    const { profile, canEdit } = auth;
 
     const records = await prisma.examRecord.findMany({
-      where: { profileId: auth.profile.id },
-      orderBy: [{ academicYear: "desc" }, { subject: "asc" }],
+      where: { profileId: profile.id },
+      orderBy: [
+        { academicYear: "desc" },
+        { subject: "asc" },
+        { examName: "asc" }
+      ],
     });
 
-    return NextResponse.json({ records, canEdit: auth.canEdit });
-  } catch (error) {
-    console.error("Failed to fetch exam records:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ records, canEdit });
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ studentId: string }> }
-) {
+export async function PUT(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
   try {
     const { studentId } = await params;
     const auth = await authorize(studentId);
     if (auth instanceof NextResponse) return auth;
-    if (!auth.canEdit) {
-      return NextResponse.json({ error: "Students cannot edit marks" }, { status: 403 });
+    const { profile, canEdit } = auth;
+
+    if (!canEdit) {
+      return NextResponse.json({ error: "You are not authorized to edit marks" }, { status: 403 });
     }
 
-    const parsed = ExamSchema.safeParse(await req.json());
+    const body = await req.json();
+    const parsed = ExamSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid exam payload" }, { status: 400 });
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
-    const { academicYear, subject, iaMax, semMax, ...marks } = parsed.data;
 
-    // Marks cannot exceed their maximums.
-    for (const key of ["ia1", "ia2", "ia3", "ia4"] as const) {
-      if (marks[key] != null && marks[key]! > iaMax) {
-        return NextResponse.json({ error: `${key.toUpperCase()} exceeds max marks (${iaMax})` }, { status: 400 });
-      }
-    }
-    for (const key of ["sem1", "sem2"] as const) {
-      if (marks[key] != null && marks[key]! > semMax) {
-        return NextResponse.json({ error: `${key.toUpperCase()} exceeds max marks (${semMax})` }, { status: 400 });
-      }
-    }
+    const data = parsed.data;
 
     const record = await prisma.examRecord.upsert({
       where: {
-        profileId_academicYear_subject: {
-          profileId: auth.profile.id,
-          academicYear,
-          subject,
-        },
+        profileId_academicYear_subject_examName: {
+          profileId: profile.id,
+          academicYear: data.academicYear,
+          subject: data.subject,
+          examName: data.examName
+        }
       },
-      create: { profileId: auth.profile.id, academicYear, subject, iaMax, semMax, ...marks },
-      update: { iaMax, semMax, ...marks },
-    });
-
-    await prisma.recordAuditLog.create({
-      data: {
-        profileId: auth.profile.id,
-        actorId: auth.viewer.id,
-        action: "UPDATE",
-        field: `Exam marks: ${subject} (${academicYear})`,
+      create: {
+        profileId: profile.id,
+        academicYear: data.academicYear,
+        subject: data.subject,
+        examName: data.examName,
+        marks: data.marks,
+        maxMarks: data.maxMarks,
+      },
+      update: {
+        marks: data.marks,
+        maxMarks: data.maxMarks,
       },
     });
 
     return NextResponse.json({ success: true, record });
-  } catch (error) {
-    console.error("Failed to save exam record:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ studentId: string }> }
-) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
   try {
     const { studentId } = await params;
     const auth = await authorize(studentId);
     if (auth instanceof NextResponse) return auth;
-    if (!auth.canEdit) {
-      return NextResponse.json({ error: "Students cannot delete marks" }, { status: 403 });
+    const { canEdit } = auth;
+
+    if (!canEdit) {
+      return NextResponse.json({ error: "You are not authorized to delete marks" }, { status: 403 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id) return NextResponse.json({ error: "Missing record id" }, { status: 400 });
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "Missing record ID" }, { status: 400 });
 
-    const deleted = await prisma.examRecord.deleteMany({
-      where: { id, profileId: auth.profile.id },
-    });
-    if (deleted.count === 0) {
-      return NextResponse.json({ error: "Record not found for this student" }, { status: 404 });
-    }
+    await prisma.examRecord.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Failed to delete exam record:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

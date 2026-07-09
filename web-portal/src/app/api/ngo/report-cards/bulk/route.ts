@@ -7,7 +7,7 @@ import { z } from "zod";
 const BulkUpdateSchema = z.object({
   academicYear: z.string().regex(/^\d{4}-\d{2}$/, "Use format 2026-27"),
   subject: z.string().min(1),
-  examType: z.enum(["ia1", "ia2", "ia3", "ia4", "sem1", "sem2"]),
+  examName: z.string().min(1),
   maxMarks: z.number().positive(),
   updates: z.array(z.object({
     profileId: z.string(),
@@ -37,11 +37,9 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { academicYear, subject, examType, maxMarks, updates } = parsed.data;
+    const { academicYear, subject, examName, maxMarks, updates } = parsed.data;
 
     const teacherCohortIds = viewer.cohortsLed.map(c => c.id);
-
-    const isIa = examType.startsWith("ia");
 
     // Process updates concurrently
     await Promise.all(updates.map(async ({ profileId, mark }) => {
@@ -58,22 +56,24 @@ export async function PUT(req: Request) {
 
       await prisma.examRecord.upsert({
         where: {
-          profileId_academicYear_subject: {
+          profileId_academicYear_subject_examName: {
             profileId,
             academicYear,
-            subject
+            subject,
+            examName
           }
         },
         create: {
           profileId,
           academicYear,
           subject,
-          [examType]: mark,
-          [isIa ? 'iaMax' : 'semMax']: maxMarks
+          examName,
+          marks: mark,
+          maxMarks
         },
         update: {
-          [examType]: mark,
-          [isIa ? 'iaMax' : 'semMax']: maxMarks
+          marks: mark,
+          maxMarks
         }
       });
     }));
