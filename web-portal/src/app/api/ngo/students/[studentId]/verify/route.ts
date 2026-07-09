@@ -102,7 +102,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       data: {
         recipientId: profile.userId,
         profileId: profile.id,
-        message: `Your ${target} record was marked as ${status} by ${actor.name || 'Admin'}.`
+        message: `Your ${target} record was marked as ${status} by ${actor.name || 'Admin'}.`,
+        actionUrl: `/router?role=STUDENT`
       }
     });
 

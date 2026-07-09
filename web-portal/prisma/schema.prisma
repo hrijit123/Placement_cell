@@ -173,9 +173,7 @@ model SyllabusPlan {
   className String
   subject   String
 
-  targetChapters    String @db.Text
-  completedChapters String @db.Text
-  pendingChapters   String @db.Text
+  topics    String @db.Text @default("[]") // JSON array of { title: string, status: "PENDING" | "IN_PROGRESS" | "COMPLETED" }
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,6 +254,7 @@ model Notification {
   profileId   String?  // The student profile this relates to
   profile     Profile? @relation(fields: [profileId], references: [id])
   message     String
+  actionUrl   String?  // Optional URL to navigate to when clicked
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
 }

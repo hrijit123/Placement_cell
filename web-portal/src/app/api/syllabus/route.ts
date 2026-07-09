@@ -8,9 +8,10 @@ const SyllabusSchema = z.object({
   month: z.string().regex(/^\d{4}-\d{2}$/, "Month must be YYYY-MM"),
   className: z.string().min(1).max(100),
   subject: z.string().min(1).max(100),
-  targetChapters: z.string().max(5000),
-  completedChapters: z.string().max(5000),
-  pendingChapters: z.string().max(5000),
+  topics: z.array(z.object({
+    title: z.string().min(1).max(200),
+    status: z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"])
+  }))
 });
 
 async function getViewer() {
@@ -74,7 +75,8 @@ export async function PUT(req: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid syllabus payload" }, { status: 400 });
     }
-    const { month, className, subject, ...chapters } = parsed.data;
+    const { month, className, subject, topics } = parsed.data;
+    const topicsJson = JSON.stringify(topics);
 
     const plan = await prisma.syllabusPlan.upsert({
       where: {
@@ -85,8 +87,8 @@ export async function PUT(req: Request) {
           subject,
         },
       },
-      create: { teacherId: viewer.id, month, className, subject, ...chapters },
-      update: chapters,
+      create: { teacherId: viewer.id, month, className, subject, topics: topicsJson },
+      update: { topics: topicsJson },
     });
 
     return NextResponse.json({ success: true, plan });

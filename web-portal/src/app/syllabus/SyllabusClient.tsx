@@ -1,15 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Plus, X, Check, Clock, Circle } from "lucide-react";
+
+type TopicStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
+
+type Topic = {
+  title: string;
+  status: TopicStatus;
+};
 
 type Plan = {
   id: string;
   month: string;
   className: string;
   subject: string;
-  targetChapters: string;
-  completedChapters: string;
-  pendingChapters: string;
+  topics: string; // JSON string from API
   updatedAt: string;
   teacher: { name: string | null; email: string | null };
 };
@@ -28,14 +34,19 @@ export default function SyllabusClient({ role }: { role: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    month: string;
+    className: string;
+    subject: string;
+    topics: Topic[];
+  }>({
     month: currentMonth(),
     className: "",
     subject: "",
-    targetChapters: "",
-    completedChapters: "",
-    pendingChapters: "",
+    topics: [],
   });
+  
+  const [newTopicTitle, setNewTopicTitle] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -53,18 +64,35 @@ export default function SyllabusClient({ role }: { role: string }) {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return; // Prevent double clicks
+    
+    // Auto-add new topic if typed but not added
+    let currentTopics = [...form.topics];
+    if (newTopicTitle.trim()) {
+      currentTopics.push({ title: newTopicTitle.trim(), status: "PENDING" });
+      setNewTopicTitle("");
+    }
+    
     setSaving(true);
     setMsg(null);
     try {
+      const payload = {
+        month: form.month,
+        className: form.className,
+        subject: form.subject,
+        topics: currentTopics
+      };
+      
       const res = await fetch("/api/syllabus", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed");
       setMsg("Syllabus saved.");
-      setForm({ ...form, subject: "", targetChapters: "", completedChapters: "", pendingChapters: "" });
+      setForm({ ...form, subject: "", topics: [] });
+      setNewTopicTitle("");
       await load();
     } catch (e: any) {
       setMsg(`Error: ${e.message}`);
@@ -79,28 +107,61 @@ export default function SyllabusClient({ role }: { role: string }) {
   };
 
   const editPlan = (p: Plan) => {
+    let parsedTopics: Topic[] = [];
+    try {
+      parsedTopics = JSON.parse(p.topics);
+      if (!Array.isArray(parsedTopics)) parsedTopics = [];
+    } catch (e) {
+      parsedTopics = [];
+    }
     setForm({
       month: p.month,
       className: p.className,
       subject: p.subject,
-      targetChapters: p.targetChapters,
-      completedChapters: p.completedChapters,
-      pendingChapters: p.pendingChapters,
+      topics: parsedTopics,
     });
+    setNewTopicTitle("");
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  
+  const addTopic = () => {
+    if (!newTopicTitle.trim()) return;
+    setForm({
+      ...form,
+      topics: [...form.topics, { title: newTopicTitle.trim(), status: "PENDING" }]
+    });
+    setNewTopicTitle("");
+  };
+  
+  const removeTopic = (index: number) => {
+    const newTopics = [...form.topics];
+    newTopics.splice(index, 1);
+    setForm({ ...form, topics: newTopics });
+  };
+  
+  const updateTopicStatus = (index: number, status: TopicStatus) => {
+    const newTopics = [...form.topics];
+    newTopics[index].status = status;
+    setForm({ ...form, topics: newTopics });
   };
 
   if (error) return <p className="text-red-700 bg-red-50 border border-red-200 rounded p-4">Error: {error}</p>;
   if (!plans) return <p className="text-[#8B7D6B] italic">Loading syllabus plans…</p>;
 
   const months = [...new Set(plans.map((p) => p.month))];
+  
+  const StatusIcon = ({ status, className = "" }: { status: TopicStatus, className?: string }) => {
+    if (status === "COMPLETED") return <Check className={`w-4 h-4 text-emerald-600 ${className}`} />;
+    if (status === "IN_PROGRESS") return <Clock className={`w-4 h-4 text-blue-500 ${className}`} />;
+    return <Circle className={`w-4 h-4 text-stone-300 ${className}`} />;
+  };
 
   return (
     <div className="space-y-10">
       {canEdit && (
         <form onSubmit={save} className="bg-white p-6 rounded shadow-sm border border-[#E1D8C9]">
           <h2 className="text-xl font-serif text-[#2C241B] mb-4">Monthly Syllabus Entry</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">Month</label>
               <input
@@ -132,24 +193,56 @@ export default function SyllabusClient({ role }: { role: string }) {
               />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-            {([
-              ["targetChapters", "Target Chapters"],
-              ["completedChapters", "Completed Chapters"],
-              ["pendingChapters", "Pending Chapters"],
-            ] as const).map(([key, label]) => (
-              <div key={key}>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-1">{label}</label>
-                <textarea
-                  value={form[key]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  placeholder="One chapter per line"
-                  className="w-full border border-[#E1D8C9] rounded px-3 py-2 bg-[#FDFBF7] min-h-[90px]"
-                />
-              </div>
-            ))}
+          
+          <div className="mb-6">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[#8B7D6B] mb-2">Topics & Chapters</label>
+            
+            <div className="space-y-2 mb-3">
+              {form.topics.map((topic, i) => (
+                <div key={i} className="flex items-center gap-3 bg-stone-50 border border-stone-200 rounded p-2">
+                  <div className="flex-1 font-medium text-sm text-stone-800 px-2">{topic.title}</div>
+                  <select 
+                    value={topic.status}
+                    onChange={(e) => updateTopicStatus(i, e.target.value as TopicStatus)}
+                    className="text-xs border border-stone-200 rounded py-1 px-2 bg-white outline-none focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="PENDING">Pending</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                  <button type="button" onClick={() => removeTopic(i)} className="p-1 hover:bg-red-100 text-red-500 rounded">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Add a new topic..."
+                value={newTopicTitle}
+                onChange={(e) => setNewTopicTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTopic();
+                  }
+                }}
+                className="flex-1 border border-[#E1D8C9] rounded px-3 py-2 bg-[#FDFBF7] text-sm"
+              />
+              <button
+                type="button"
+                onClick={addTopic}
+                disabled={!newTopicTitle.trim()}
+                className="px-4 py-2 bg-stone-100 text-stone-700 hover:bg-stone-200 rounded font-medium text-sm flex items-center gap-1 disabled:opacity-50"
+              >
+                <Plus className="w-4 h-4" /> Add Topic
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-4 border-t border-[#E1D8C9] pt-4">
             <button
               type="submit"
               disabled={saving}
@@ -181,10 +274,18 @@ export default function SyllabusClient({ role }: { role: string }) {
             <h2 className="text-2xl font-serif text-[#2C241B] mb-4">{monthLabel(month)}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {plans.filter((p) => p.month === month).map((p) => {
-                const target = p.targetChapters.split("\n").filter(Boolean);
-                const done = p.completedChapters.split("\n").filter(Boolean);
-                const pending = p.pendingChapters.split("\n").filter(Boolean);
-                const progress = target.length > 0 ? Math.min(100, Math.round((done.length / target.length) * 100)) : null;
+                let topics: Topic[] = [];
+                try {
+                  topics = JSON.parse(p.topics);
+                  if (!Array.isArray(topics)) topics = [];
+                } catch (e) {
+                  topics = [];
+                }
+                
+                const total = topics.length;
+                const completed = topics.filter(t => t.status === "COMPLETED").length;
+                const progress = total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : null;
+                
                 return (
                   <div key={p.id} className="bg-white border border-[#E1D8C9] rounded shadow-sm p-5">
                     <div className="flex justify-between items-start mb-3">
@@ -203,21 +304,30 @@ export default function SyllabusClient({ role }: { role: string }) {
                     </div>
 
                     {progress !== null && (
-                      <div className="mb-3">
+                      <div className="mb-4">
                         <div className="flex justify-between text-xs text-[#6B5E4C] mb-1">
-                          <span>{done.length} of {target.length} chapters completed</span>
+                          <span>{completed} of {total} topics completed</span>
                           <span className="font-semibold">{progress}%</span>
                         </div>
                         <div className="h-2 bg-[#F5F0E6] rounded-full overflow-hidden">
-                          <div className="h-full bg-[#2D4A22] rounded-full" style={{ width: `${progress}%` }} />
+                          <div className="h-full bg-[#2D4A22] rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                         </div>
                       </div>
                     )}
 
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <ChapterList title="Target" items={target} tone="text-stone-700" />
-                      <ChapterList title="Completed" items={done} tone="text-emerald-700" />
-                      <ChapterList title="Pending" items={pending} tone="text-amber-700" />
+                    <div className="space-y-1">
+                      {topics.length === 0 ? (
+                        <p className="text-xs text-stone-400 italic">No topics added.</p>
+                      ) : (
+                        topics.map((t, i) => (
+                          <div key={i} className="flex items-center gap-2 text-sm">
+                            <StatusIcon status={t.status} />
+                            <span className={`flex-1 ${t.status === 'COMPLETED' ? 'text-stone-400 line-through' : 'text-stone-700'}`}>
+                              {t.title}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 );
@@ -225,23 +335,6 @@ export default function SyllabusClient({ role }: { role: string }) {
             </div>
           </section>
         ))
-      )}
-    </div>
-  );
-}
-
-function ChapterList({ title, items, tone }: { title: string; items: string[]; tone: string }) {
-  return (
-    <div>
-      <p className="text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">{title}</p>
-      {items.length === 0 ? (
-        <p className="text-xs text-stone-400 italic">—</p>
-      ) : (
-        <ul className={`space-y-0.5 ${tone} font-medium`}>
-          {items.map((c, i) => (
-            <li key={i} className="text-xs">• {c}</li>
-          ))}
-        </ul>
       )}
     </div>
   );

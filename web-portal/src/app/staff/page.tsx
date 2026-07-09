@@ -50,6 +50,17 @@ export default async function StaffDashboard() {
             <h2 className="text-3xl font-serif font-semibold text-[#2C241B] mb-4">Syllabus Tracker</h2>
             <p className="text-[#6B5E4C]">Record monthly target, completed, and pending chapters per class and subject.</p>
           </Link>
+
+          {/* Report Cards */}
+          <Link href="/report-cards" className="group bg-white border border-[#E1D8C9] rounded-xl p-10 flex flex-col items-center text-center shadow-sm hover:shadow-xl hover:border-[#2D4A22] transition-all duration-300">
+            <div className="w-24 h-24 bg-[#FAF8F3] rounded-full flex items-center justify-center mb-6 group-hover:bg-[#2D4A22] group-hover:text-white transition-colors duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-serif font-semibold text-[#2C241B] mb-4">Report Cards</h2>
+            <p className="text-[#6B5E4C]">Bulk enter internal assessment and semester marks for your students.</p>
+          </Link>
         </div>
       </div>
     </div>

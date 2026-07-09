@@ -123,7 +123,8 @@ export async function GET(
             data: {
               recipientId: admin.id,
               profileId: studentProfile.id,
-              message: `Teacher ${viewerUser.name || viewerUser.email} performed an out-of-cohort lookup for student ${studentProfile.user.name || studentProfile.studentId}. Reason: ${overrideReason}`
+              message: `Teacher ${viewerUser.name || viewerUser.email} performed an out-of-cohort lookup for student ${studentProfile.user.name || studentProfile.studentId}. Reason: ${overrideReason}`,
+              actionUrl: `/database?search=${studentProfile.studentId || studentProfile.id}`
             }
           });
         }

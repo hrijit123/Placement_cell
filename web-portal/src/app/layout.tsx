@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navbar from "@/components/Navbar";
-import AdBanner from "@/components/AdBanner";
 import Providers from "./Providers";
 import "./globals.css";
 
@@ -35,7 +34,6 @@ export default function RootLayout({
         <Providers>
           <Navbar />
           <main className="flex-grow flex flex-col">{children}</main>
-          <AdBanner />
         </Providers>
       </body>
     </html>

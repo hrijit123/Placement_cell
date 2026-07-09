@@ -20,15 +20,23 @@ export default function CohortManagementTab() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [cRes, tRes] = await Promise.all([
-      fetch("/api/admin/cohorts"),
-      fetch("/api/admin/teachers") // using the existing teachers API
-    ]);
-    const cData = await cRes.json();
-    const tData = await tRes.json();
-    setCohorts(Array.isArray(cData) ? cData : []);
-    setTeachers(Array.isArray(tData) ? tData : []);
-    setLoading(false);
+    try {
+      const [cRes, tRes] = await Promise.all([
+        fetch("/api/admin/cohorts"),
+        fetch("/api/admin/staff") // Fetching from the correct endpoint
+      ]);
+      const cData = await cRes.json();
+      const tData = await tRes.json();
+      setCohorts(Array.isArray(cData) ? cData : []);
+      // The staff endpoint returns { teachers: [...] }
+      setTeachers(tData.teachers && Array.isArray(tData.teachers) ? tData.teachers : []);
+    } catch (error) {
+      console.error("Failed to load data:", error);
+      setCohorts([]);
+      setTeachers([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {

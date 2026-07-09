@@ -78,26 +78,28 @@ const PORTALS: Portal[] = [
 export default function HomePortalCards({ signedInRole }: { signedInRole?: string }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Portal | null>(null);
-  const [email, setEmail] = useState("");
+  const [pin, setPin] = useState("");
+  const [pinRequired, setPinRequired] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) {
-      setError("Please enter your email");
-      return;
-    }
     setError("");
-    const res = await signIn("credentials", {
-      email,
-      redirect: false,
-    });
-    
-    if (res?.ok) {
-      router.push(`/router?role=${selected?.role}`);
-    } else {
-      setError("Invalid credentials");
+
+    if (pinRequired) {
+      const res = await fetch("/api/auth/verify-pin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: selected?.role, pin })
+      });
+      if (!res.ok) {
+        setError("Invalid PIN");
+        return;
+      }
     }
+
+    // Google Auth
+    signIn("google", { callbackUrl: `/router?role=${selected?.role}` });
   };
 
   const openPortal = (portal: Portal) => {
@@ -106,6 +108,9 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
       router.push(`/router?role=${portal.role}`);
     } else {
       setSelected(portal);
+      setPinRequired(portal.role === "ADMIN" || portal.role === "TEACHER");
+      setError("");
+      setPin("");
     }
   };
 
@@ -113,31 +118,36 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
     return (
       <div className="flex flex-col items-center bg-white p-12 rounded-2xl shadow-sm border border-stone-200 max-w-md w-full mx-auto">
         <h2 className="text-3xl font-serif font-semibold text-stone-900 mb-2">{selected.title}</h2>
-        <p className="text-stone-500 mb-8 text-center">
-          Sign in to access your {selected.title.toLowerCase()} dashboard and records.
+        <p className="text-stone-500 mb-6 text-center">
+          {pinRequired ? `Enter the ${selected.title} PIN to continue.` : `Sign in to access your ${selected.title.toLowerCase()} dashboard.`}
         </p>
-        <form onSubmit={handleLogin} className="w-full flex flex-col gap-3 mb-4">
-          <div>
-            <input 
-              type="email" 
-              placeholder="admin@deeds.org"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-transparent outline-none"
-              autoFocus
-            />
-            {error && <p className="text-red-500 text-xs mt-1 text-left">{error}</p>}
-          </div>
+        <form className="w-full flex flex-col gap-3 mb-4">
+          {pinRequired && (
+            <div>
+              <input 
+                type="password" 
+                placeholder="Enter PIN"
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-transparent outline-none mb-3 text-center tracking-[0.2em] font-mono text-lg"
+                autoFocus
+              />
+            </div>
+          )}
+          
           <button
-            type="submit"
-            className="w-full bg-stone-900 text-white hover:bg-stone-800 px-6 py-3 rounded-xl font-medium transition-colors shadow-sm"
+            onClick={handleLogin}
+            className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-6 py-3.5 rounded-xl font-medium transition-all shadow-sm"
           >
-            Sign In to Dashboard
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+            Continue with Google
           </button>
+          
+          {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
         </form>
         <button
           onClick={() => setSelected(null)}
-          className="text-stone-400 hover:text-stone-900 text-sm underline underline-offset-4 font-medium transition-colors"
+          className="text-stone-400 hover:text-stone-900 text-sm underline underline-offset-4 font-medium transition-colors mt-2"
         >
           Go back
         </button>

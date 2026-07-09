@@ -13,7 +13,7 @@ export default async function RouterPage({ searchParams }: { searchParams: Promi
   const { role: requestedRole } = await searchParams;
 
   // Find the user in DB
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { email: session.user.email }
   });
 
@@ -21,13 +21,22 @@ export default async function RouterPage({ searchParams }: { searchParams: Promi
     redirect("/");
   }
 
-  // The role is locked to the user's account in the database.
-  // We no longer allow the frontend to arbitrarily change a user's role on navigation.
+  // Restore the demo behavior: if they click a specific portal, switch their role to match it.
+  let finalRole = user.role;
+  if (requestedRole && requestedRole !== user.role && ["ADMIN", "TEACHER", "STUDENT"].includes(requestedRole)) {
+    user = await prisma.user.update({
+      where: { id: user.id },
+      data: { role: requestedRole as any }
+    });
+    finalRole = user.role;
+  }
 
   // Route based on final role
-  if (user.role === "ADMIN" || user.role === "TEACHER") {
+  if (finalRole === "ADMIN") {
+    redirect("/admin");
+  } else if (finalRole === "TEACHER") {
     redirect("/staff");
-  } else if (user.role === "STUDENT") {
+  } else if (finalRole === "STUDENT") {
     // Check if profile exists
     let profile = await prisma.profile.findUnique({
       where: { userId: user.id }

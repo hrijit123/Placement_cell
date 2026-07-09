@@ -149,9 +149,11 @@ export default async function Home() {
         )}
 
         {/* ---- Portal cards ---- */}
-        <section className="mb-12">
-          <HomePortalCards signedInRole={role} />
-        </section>
+        {!session && (
+          <section className="mb-12">
+            <HomePortalCards signedInRole={role} />
+          </section>
+        )}
 
         {/* ---- Staff dashboard widgets ---- */}
         {kpis && isStaff && (

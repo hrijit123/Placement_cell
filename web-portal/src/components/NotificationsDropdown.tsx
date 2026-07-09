@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Bell } from "lucide-react";
+import Link from "next/link";
 
 export default function NotificationsDropdown() {
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -60,12 +61,23 @@ export default function NotificationsDropdown() {
             {notifications.length === 0 ? (
               <div className="p-4 text-center text-stone-500 text-sm">No notifications</div>
             ) : (
-              notifications.map(n => (
-                <div key={n.id} className={`p-4 border-b border-stone-100 last:border-0 ${!n.isRead ? 'bg-emerald-50/50' : ''}`}>
-                  <p className="text-sm text-stone-800">{n.message}</p>
-                  <p className="text-xs text-stone-400 mt-1">{new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString()}</p>
-                </div>
-              ))
+              notifications.map(n => {
+                const NotificationContent = (
+                  <div key={n.id} className={`p-4 border-b border-stone-100 last:border-0 ${!n.isRead ? 'bg-emerald-50/50' : ''} ${n.actionUrl ? 'hover:bg-stone-50 cursor-pointer transition-colors' : ''}`}>
+                    <p className="text-sm text-stone-800">{n.message}</p>
+                    <p className="text-xs text-stone-400 mt-1">{new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString()}</p>
+                  </div>
+                );
+
+                if (n.actionUrl) {
+                  return (
+                    <Link href={n.actionUrl} key={n.id} onClick={() => setIsOpen(false)}>
+                      {NotificationContent}
+                    </Link>
+                  );
+                }
+                return NotificationContent;
+              })
             )}
           </div>
         </div>
