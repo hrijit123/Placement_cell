@@ -82,14 +82,7 @@ export default function Navbar() {
                   Sign Out
                 </button>
               </div>
-            ) : (
-              <Link
-                href="/"
-                className="bg-[#2D4A22] hover:bg-[#1f3418] text-white px-5 py-2 rounded-full text-sm font-medium transition-colors shadow-sm"
-              >
-                Sign In
-              </Link>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
