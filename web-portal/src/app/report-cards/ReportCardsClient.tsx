@@ -78,6 +78,27 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
       setStatusMsg({ type: 'error', text: 'Please enter a subject before saving.' });
       return;
     }
+    if (!examName.trim()) {
+      setStatusMsg({ type: 'error', text: 'Please enter an exam name before saving.' });
+      return;
+    }
+
+    const max = Number(maxMarks);
+    if (isNaN(max) || max <= 0) {
+      setStatusMsg({ type: 'error', text: 'Please enter a valid max marks.' });
+      return;
+    }
+
+    // Client-side validation for marks exceeding maxMarks
+    for (const [profileId, val] of Object.entries(marks)) {
+      if (val !== "" && val !== null) {
+        const numVal = Number(val);
+        if (numVal > max) {
+          setStatusMsg({ type: 'error', text: `Marks cannot exceed ${max}. Please check the entered values.` });
+          return;
+        }
+      }
+    }
 
     setSaving(true);
     setStatusMsg(null);
@@ -95,7 +116,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
           academicYear,
           subject,
           examName,
-          maxMarks: Number(maxMarks),
+          maxMarks: max,
           updates
         })
       });
