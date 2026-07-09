@@ -27,7 +27,7 @@ export async function GET(req: Request) {
       profiles = await prisma.profile.findMany({
         include: {
           user: { select: { name: true, email: true } },
-          cohorts: { select: { name: true } },
+          cohorts: { select: { id: true, name: true, teacher: { select: { name: true } } } },
           careerTrack: true
         }
       });
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
         },
         include: {
           user: { select: { name: true, email: true } },
-          cohorts: { select: { name: true } },
+          cohorts: { select: { id: true, name: true, teacher: { select: { name: true } } } },
           careerTrack: true
         }
       });

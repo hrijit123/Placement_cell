@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import AssignCohortModal from "../admin/AssignCohortModal";
+
 type StudentRecord = {
   id: string;
   studentId: string | null;
   name: string | null;
   user: { name: string | null; email: string | null } | null;
-  cohorts: { name: string }[];
+  cohorts: { id?: string; name: string; teacher?: { name: string | null } }[];
   careerTrack: any[];
 };
 
@@ -22,6 +24,7 @@ export default function DatabaseHome() {
   const [showPreRegister, setShowPreRegister] = useState(false);
   const [preRegisterMsg, setPreRegisterMsg] = useState("");
   const [cohorts, setCohorts] = useState<{id: string; name: string}[]>([]);
+  const [assignProfileId, setAssignProfileId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -190,7 +193,7 @@ export default function DatabaseHome() {
                   </tr>
                 ) : (
                   filteredStudents.map((s) => (
-                    <tr key={s.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors cursor-pointer" onClick={() => router.push(`/database/${s.id}`)}>
+                    <tr key={s.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors cursor-pointer" onClick={(e) => { e.preventDefault(); if (s.studentId) router.push(`/database/${encodeURIComponent(s.studentId)}`); }}>
                       <td className="px-6 py-4 font-mono text-sm text-[#8B7D6B] whitespace-nowrap">
                         {s.studentId || <span className="text-stone-300">Pending</span>}
                       </td>
@@ -205,7 +208,7 @@ export default function DatabaseHome() {
                           {s.cohorts.length > 0 ? (
                             s.cohorts.map((c) => (
                               <span key={c.name} className="px-2 py-0.5 bg-[#E1D8C9] rounded text-xs text-[#3E362E]">
-                                {c.name}
+                                {c.name} {c.teacher?.name ? <span className="opacity-70">(by {c.teacher.name})</span> : ''}
                               </span>
                             ))
                           ) : (
@@ -213,9 +216,21 @@ export default function DatabaseHome() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right space-x-3">
+                        {role === "ADMIN" && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAssignProfileId(s.id);
+                            }}
+                            className="text-[#2D4A22] hover:underline font-semibold"
+                          >
+                            Assign Cohort
+                          </button>
+                        )}
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (s.studentId) router.push(`/database/${encodeURIComponent(s.studentId)}`);
                           }}
                           disabled={!s.studentId}
@@ -326,6 +341,16 @@ export default function DatabaseHome() {
             </div>
           </div>
         </div>
+      )}
+
+      {assignProfileId && (
+        <AssignCohortModal 
+          profileId={assignProfileId} 
+          onClose={() => {
+            setAssignProfileId(null);
+            fetchStudents();
+          }} 
+        />
       )}
     </div>
   );
