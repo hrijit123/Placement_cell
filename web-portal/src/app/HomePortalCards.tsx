@@ -151,7 +151,7 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
   }
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 ${visiblePortals.length >= 4 ? 'xl:grid-cols-4' : (visiblePortals.length === 1 ? 'max-w-md mx-auto' : 'max-w-3xl mx-auto')} gap-6`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto ${visiblePortals.length === 1 ? 'lg:grid-cols-1 max-w-md' : visiblePortals.length === 2 ? 'lg:grid-cols-2 max-w-3xl' : ''}`}>
       {visiblePortals.map((portal) => (
         <div
           key={portal.key}
