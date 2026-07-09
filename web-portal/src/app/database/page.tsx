@@ -20,8 +20,17 @@ export default function DatabaseHome() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showPreRegister, setShowPreRegister] = useState(false);
-  const [newStudentName, setNewStudentName] = useState("");
   const [preRegisterMsg, setPreRegisterMsg] = useState("");
+  const [cohorts, setCohorts] = useState<{id: string; name: string}[]>([]);
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    className: "",
+    vocation: "",
+    disabilityInfo: "",
+    expectedSalary: "",
+    cohortId: "",
+  });
   const role = (session?.user as any)?.role;
 
   const fetchStudents = () => {
@@ -37,9 +46,19 @@ export default function DatabaseHome() {
       });
   };
 
+  const fetchCohorts = () => {
+    fetch("/api/ngo/cohorts")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setCohorts(data);
+      })
+      .catch((err) => console.error("Failed to fetch cohorts", err));
+  };
+
   useEffect(() => {
     if (status === "authenticated" && (role === "ADMIN" || role === "TEACHER")) {
       fetchStudents();
+      fetchCohorts();
     } else if (status !== "loading") {
       setLoading(false);
     }
@@ -85,21 +104,20 @@ export default function DatabaseHome() {
     e.preventDefault();
     setPreRegisterMsg("Registering...");
     try {
-      const names = newStudentName.split("\n").map(n => n.trim()).filter(n => n.length > 0);
-      if (names.length === 0) {
-        setPreRegisterMsg("Please enter at least one name.");
+      if (!formData.name.trim()) {
+        setPreRegisterMsg("Please enter the student's name.");
         return;
       }
       
       const res = await fetch("/api/ngo/students/pre-register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ names })
+        body: JSON.stringify(formData)
       });
       if (res.ok) {
         const data = await res.json();
-        setPreRegisterMsg(`Success! Generated IDs:\n${data.map((p: any) => `${p.name}: ${p.studentId}`).join("\n")}`);
-        setNewStudentName("");
+        setPreRegisterMsg(`Success! Generated ID: ${data.studentId}`);
+        setFormData({ name: "", phone: "", className: "", vocation: "", disabilityInfo: "", expectedSalary: "", cohortId: "" });
         fetchStudents();
       } else {
         const err = await res.json();
@@ -217,38 +235,94 @@ export default function DatabaseHome() {
 
       {showPreRegister && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-stone-100 flex justify-between items-center">
               <h2 className="text-xl font-serif font-bold text-[#2C241B]">Pre-Register Student</h2>
               <button onClick={() => { setShowPreRegister(false); setPreRegisterMsg(""); }} className="text-stone-400 hover:text-stone-600">✕</button>
             </div>
-            <form onSubmit={handlePreRegister} className="p-6">
-              <p className="text-sm text-stone-600 mb-4">
-                Enter student names (one per line) to generate Student IDs in bulk.
-              </p>
-              <div className="mb-4">
-                <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Student Names</label>
-                <textarea
-                  value={newStudentName}
-                  onChange={(e) => setNewStudentName(e.target.value)}
-                  placeholder="John Doe\nJane Smith"
-                  rows={4}
-                  className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
-                  required
-                />
-              </div>
-              
-              {preRegisterMsg && (
-                <div className="mb-4 p-3 rounded bg-[#FAF8F3] border border-[#E1D8C9] text-sm font-medium text-stone-800 whitespace-pre-wrap">
-                  {preRegisterMsg}
+            <div className="p-6 overflow-y-auto">
+              <form onSubmit={handlePreRegister} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Student Name *</label>
+                  <input
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                    placeholder="John Doe"
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                    required
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Phone Number</label>
+                  <input
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    placeholder="+91 9876543210"
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Class / Batch</label>
+                  <input
+                    value={formData.className}
+                    onChange={(e) => setFormData({...formData, className: e.target.value})}
+                    placeholder="e.g. Batch A"
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Vocation / Interests</label>
+                  <input
+                    value={formData.vocation}
+                    onChange={(e) => setFormData({...formData, vocation: e.target.value})}
+                    placeholder="e.g. IT, Tailoring"
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Expected Salary</label>
+                  <input
+                    value={formData.expectedSalary}
+                    onChange={(e) => setFormData({...formData, expectedSalary: e.target.value})}
+                    placeholder="e.g. 15,000/mo"
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Disability Info / Accommodations</label>
+                  <input
+                    value={formData.disabilityInfo}
+                    onChange={(e) => setFormData({...formData, disabilityInfo: e.target.value})}
+                    placeholder="e.g. Needs sign language interpreter"
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  />
+                </div>
+                <div className="col-span-1 md:col-span-2">
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Assign to Cohort</label>
+                  <select
+                    value={formData.cohortId}
+                    onChange={(e) => setFormData({...formData, cohortId: e.target.value})}
+                    className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  >
+                    <option value="">-- None / Default --</option>
+                    {cohorts.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {preRegisterMsg && (
+                  <div className="col-span-1 md:col-span-2 mt-2 p-3 rounded bg-[#FAF8F3] border border-[#E1D8C9] text-sm font-medium text-stone-800 whitespace-pre-wrap">
+                    {preRegisterMsg}
+                  </div>
+                )}
 
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => { setShowPreRegister(false); setPreRegisterMsg(""); }} className="px-4 py-2 border border-stone-300 rounded text-sm text-stone-700 hover:bg-stone-50">Done</button>
-                <button type="submit" className="px-4 py-2 bg-[#2D4A22] text-white rounded text-sm hover:bg-[#1f3317]">Generate ID</button>
-              </div>
-            </form>
+                <div className="col-span-1 md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-stone-100">
+                  <button type="button" onClick={() => { setShowPreRegister(false); setPreRegisterMsg(""); }} className="px-4 py-2 border border-stone-300 rounded text-sm text-stone-700 hover:bg-stone-50">Done</button>
+                  <button type="submit" className="px-4 py-2 bg-[#2D4A22] text-white rounded text-sm hover:bg-[#1f3317]">Register Student</button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
