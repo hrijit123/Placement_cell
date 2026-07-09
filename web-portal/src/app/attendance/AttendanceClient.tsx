@@ -102,7 +102,7 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-[#E1D8C9] p-2 rounded w-48"
+                className="border border-stone-400 text-stone-900 font-medium p-2 rounded w-48 focus:outline-none focus:border-[#2D4A22] focus:ring-1 focus:ring-[#2D4A22]"
               />
             </div>
             <div className="flex-1">
@@ -112,7 +112,7 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
                 placeholder="e.g. Resume Building Workshop"
                 value={eventDesc}
                 onChange={(e) => setEventDesc(e.target.value)}
-                className="border border-[#E1D8C9] p-2 rounded w-full"
+                className="border border-stone-400 text-stone-900 font-medium placeholder:text-stone-500 p-2 rounded w-full focus:outline-none focus:border-[#2D4A22] focus:ring-1 focus:ring-[#2D4A22]"
               />
             </div>
           </div>
@@ -197,7 +197,7 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
                 type="month"
                 value={month}
                 onChange={(e) => setMonth(e.target.value)}
-                className="border border-[#E1D8C9] p-2 rounded w-48"
+                className="border border-stone-400 text-stone-900 font-medium p-2 rounded w-48 focus:outline-none focus:border-[#2D4A22] focus:ring-1 focus:ring-[#2D4A22]"
               />
             </div>
             <p className="text-xs text-[#8B7D6B] pb-2">
