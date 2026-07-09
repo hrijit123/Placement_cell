@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import UserManagementTable from "./UserManagementTable"
 import ChartsSection from "./ChartsSection"
+import CohortManagementTab from "./CohortManagementTab"
 
 export default async function AdminDashboard() {
   const session = await getServerSession(authOptions)
@@ -16,10 +17,10 @@ export default async function AdminDashboard() {
     prisma.user.count({ where: { role: 'STUDENT' } }),
     prisma.user.count({ where: { role: 'RECRUITER' } }),
     prisma.job.count(),
-    prisma.careerRecord.count({ where: { recordType: 'INTERVIEW' } }),
+    prisma.careerRecord.count({ where: { recordType: 'INTERVIEW', verification: 'VERIFIED' } }),
     prisma.careerRecord.findMany({
       take: 5,
-      where: { recordType: 'INTERVIEW' },
+      where: { recordType: 'INTERVIEW', verification: 'VERIFIED' },
       orderBy: { createdAt: 'desc' },
       include: {
         profile: { include: { user: true } }
@@ -33,28 +34,28 @@ export default async function AdminDashboard() {
   sixMonthsAgo.setHours(0, 0, 0, 0)
 
   const [funnelRaw, employersRaw, attendanceRaw, recentApps, placedStudents, workingNow, salaryAgg, activeStudents, placementRecords] = await Promise.all([
-    prisma.careerRecord.groupBy({ by: ['interviewStatus'], where: { recordType: 'INTERVIEW' }, _count: { _all: true } }),
+    prisma.careerRecord.groupBy({ by: ['interviewStatus'], where: { recordType: 'INTERVIEW', verification: 'VERIFIED' }, _count: { _all: true } }),
     prisma.careerRecord.groupBy({
       by: ['company'],
-      where: { recordType: 'PLACEMENT' },
+      where: { recordType: 'PLACEMENT', verification: 'VERIFIED' },
       _count: { _all: true },
       orderBy: { _count: { company: 'desc' } },
       take: 5
     }),
     prisma.attendance.groupBy({ by: ['status'], _count: { _all: true } }),
     prisma.careerRecord.findMany({
-      where: { recordType: 'INTERVIEW', createdAt: { gte: sixMonthsAgo } },
+      where: { recordType: 'INTERVIEW', verification: 'VERIFIED', createdAt: { gte: sixMonthsAgo } },
       select: { createdAt: true }
     }),
     prisma.careerRecord.groupBy({
       by: ['profileId'],
-      where: { recordType: 'INTERVIEW', interviewStatus: 'OFFER_ACCEPTED' }
+      where: { recordType: 'INTERVIEW', interviewStatus: 'OFFER_ACCEPTED', verification: 'VERIFIED' }
     }),
-    prisma.careerRecord.count({ where: { recordType: 'PLACEMENT', placementStatus: 'WORKING' } }),
-    prisma.careerRecord.aggregate({ _avg: { salary: true } }),
+    prisma.careerRecord.count({ where: { recordType: 'PLACEMENT', placementStatus: 'WORKING', verification: 'VERIFIED' } }),
+    prisma.careerRecord.aggregate({ where: { verification: 'VERIFIED' }, _avg: { salary: true } }),
     prisma.user.count({ where: { role: 'STUDENT', status: 'ACTIVE' } }),
     prisma.careerRecord.findMany({
-      where: { recordType: 'PLACEMENT' },
+      where: { recordType: 'PLACEMENT', verification: 'VERIFIED' },
       select: { profileId: true, startDate: true, createdAt: true }
     })
   ])
@@ -183,6 +184,10 @@ export default async function AdminDashboard() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="bg-white p-8 rounded shadow-sm border border-[#E1D8C9] mt-12 mb-12">
+          <CohortManagementTab />
         </section>
 
         <UserManagementTable />

@@ -21,7 +21,7 @@ export async function GET() {
 
     const eligibleStudents = await prisma.profile.count({ where: { isEligibleForPlacement: true } });
     
-    const allCareers = await prisma.careerRecord.findMany();
+    const allCareers = await prisma.careerRecord.findMany({ where: { verification: "VERIFIED" } });
     const placedStudents = new Set(allCareers.filter(c => c.recordType === "PLACEMENT" && c.placementStatus === "WORKING").map(c => c.profileId)).size;
     
     const activeEmployers = new Set(allCareers.map(c => c.company)).size;

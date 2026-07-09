@@ -217,7 +217,8 @@ export default function UserManagementTable() {
       {hrModalTeacher && (
         <TeacherHRModal 
           teacher={hrModalTeacher} 
-          onClose={() => { setHrModalTeacher(null); fetchUsers(page); }} 
+          onClose={() => { setHrModalTeacher(null); fetchUsers(page); }}
+          onSaved={() => fetchUsers(page)} 
         />
       )}
     </section>

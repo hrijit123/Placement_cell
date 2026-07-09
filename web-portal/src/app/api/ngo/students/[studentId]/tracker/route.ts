@@ -128,3 +128,69 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request, { params }: { params: Promise<{ studentId: string }> }) {
+  try {
+    const { studentId } = await params;
+    const session = await getServerSession(authOptions);
+    const role = (session as any)?.user?.role;
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const actor = await prisma.user.findUnique({ where: { email: session.user.email! }, include: { profile: true } });
+    if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const profile = await prisma.profile.findUnique({
+      where: { studentId },
+      include: { cohorts: true, user: true }
+    });
+
+    if (!profile) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
+    if (role === "STUDENT") {
+      if (actor.profile?.studentId !== studentId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else if (role === "TEACHER") {
+      const teacherUser = await prisma.user.findUnique({
+        where: { id: actor.id },
+        include: { cohortsLed: true }
+      });
+      const teacherCohortIds = teacherUser?.cohortsLed.map(c => c.id) || [];
+      const studentCohortIds = profile.cohorts.map(c => c.id) || [];
+      const hasAccess = studentCohortIds.some(id => teacherCohortIds.includes(id));
+
+      if (!hasAccess) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
+    } else if (role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { recordId } = await req.json();
+    if (!recordId) return NextResponse.json({ error: "Missing recordId" }, { status: 400 });
+
+    const record = await prisma.careerRecord.findUnique({ where: { id: recordId } });
+    if (!record || record.profileId !== profile.id) {
+      return NextResponse.json({ error: "Record not found" }, { status: 404 });
+    }
+
+    await prisma.careerRecord.delete({ where: { id: recordId } });
+
+    await prisma.recordAuditLog.create({
+      data: {
+        profileId: profile.id,
+        actorId: actor.id,
+        action: "DELETE",
+        field: "Career Track Record",
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Tracker delete error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

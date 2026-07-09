@@ -155,7 +155,8 @@ export async function GET(
         courseworks: studentProfile.courseworks,
         internships: studentProfile.internships,
         certifications: studentProfile.certifications,
-        transcripts: studentProfile.transcripts
+        transcripts: studentProfile.transcripts,
+        resumePdfUrl: studentProfile.resumePdfUrl
       },
       jobPreferences: {
         expectedSalary: isRedacted ? '[REDACTED]' : studentProfile.expectedSalary,

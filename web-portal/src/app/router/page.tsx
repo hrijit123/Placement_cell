@@ -21,14 +21,8 @@ export default async function RouterPage({ searchParams }: { searchParams: Promi
     redirect("/");
   }
 
-  // For demo purposes, we will update the role to what they clicked on the home page portal.
-  if (requestedRole && ["ADMIN", "TEACHER", "STUDENT"].includes(requestedRole)) {
-    await prisma.user.update({
-      where: { email: user.email! },
-      data: { role: requestedRole as any }
-    });
-    user.role = requestedRole as any;
-  }
+  // The role is locked to the user's account in the database.
+  // We no longer allow the frontend to arbitrarily change a user's role on navigation.
 
   // Route based on final role
   if (user.role === "ADMIN" || user.role === "TEACHER") {

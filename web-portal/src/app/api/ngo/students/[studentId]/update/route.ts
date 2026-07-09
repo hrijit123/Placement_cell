@@ -92,6 +92,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       education: processVerifiedField(data.education, profile.education),
       certifications: processVerifiedField(data.certifications, profile.certifications),
       transcripts: processVerifiedField(data.transcripts, profile.transcripts),
+
+      resumePdfUrl: data.resumePdfUrl !== undefined ? data.resumePdfUrl : profile.resumePdfUrl,
     };
 
     // Update profile

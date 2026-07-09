@@ -6,7 +6,7 @@ export async function GET() {
     const [totalStudents, eligibleStudents, allCareers] = await Promise.all([
       prisma.profile.count(),
       prisma.profile.count({ where: { isEligibleForPlacement: true } }),
-      prisma.careerRecord.findMany({ where: { recordType: "PLACEMENT", placementStatus: "WORKING" } })
+      prisma.careerRecord.findMany({ where: { recordType: "PLACEMENT", placementStatus: "WORKING", verification: "VERIFIED" } })
     ]);
 
     const placedStudents = new Set(allCareers.map(c => c.profileId)).size;
@@ -16,7 +16,8 @@ export async function GET() {
     const upcomingInterviews = await prisma.careerRecord.count({
       where: {
         recordType: "INTERVIEW",
-        interviewStatus: "SCHEDULED"
+        interviewStatus: "SCHEDULED",
+        verification: "VERIFIED"
       }
     });
 

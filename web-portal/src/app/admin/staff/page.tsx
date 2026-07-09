@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import StaffRecordsClient from "./StaffRecordsClient";
+import ClassMasterList from "./ClassMasterList";
 
 export default async function StaffRecordsPage() {
   const session = await getServerSession(authOptions);
@@ -26,6 +27,7 @@ export default async function StaffRecordsPage() {
           </Link>
         </header>
 
+        <ClassMasterList />
         <StaffRecordsClient />
       </div>
     </div>

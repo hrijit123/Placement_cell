@@ -41,6 +41,7 @@ export default async function Home() {
         prisma.careerRecord.groupBy({
           by: ["profileId"],
           where: {
+            verification: "VERIFIED",
             OR: [
               { recordType: "INTERVIEW", interviewStatus: "OFFER_ACCEPTED" },
               { recordType: "PLACEMENT", placementStatus: "WORKING" },
@@ -49,11 +50,11 @@ export default async function Home() {
         }),
         prisma.careerRecord.groupBy({
           by: ["profileId"],
-          where: { recordType: "INTERVIEW" },
+          where: { recordType: "INTERVIEW", verification: "VERIFIED" },
         }),
-        prisma.careerRecord.groupBy({ by: ["company"] }),
+        prisma.careerRecord.groupBy({ by: ["company"], where: { verification: "VERIFIED" } }),
         prisma.careerRecord.count({
-          where: { recordType: "INTERVIEW", interviewStatus: "SCHEDULED" },
+          where: { recordType: "INTERVIEW", interviewStatus: "SCHEDULED", verification: "VERIFIED" },
         }),
       ]);
 
@@ -78,6 +79,7 @@ export default async function Home() {
       const [placements, interviews] = await Promise.all([
         prisma.careerRecord.findMany({
           where: {
+            verification: "VERIFIED",
             OR: [
               { recordType: "INTERVIEW", interviewStatus: "OFFER_ACCEPTED" },
               { recordType: "PLACEMENT" },
@@ -88,7 +90,7 @@ export default async function Home() {
           include: { profile: { include: { user: { select: { name: true } } } } },
         }),
         prisma.careerRecord.findMany({
-          where: { recordType: "INTERVIEW", interviewStatus: "SCHEDULED" },
+          where: { recordType: "INTERVIEW", interviewStatus: "SCHEDULED", verification: "VERIFIED" },
           orderBy: { createdAt: "desc" },
           take: 4,
           select: { id: true, company: true, role: true, createdAt: true },

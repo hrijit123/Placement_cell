@@ -3,13 +3,20 @@
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
 import NotificationsDropdown from "./NotificationsDropdown";
-import { Heart, LayoutDashboard, Users, Handshake, FileBarChart, Settings } from "lucide-react";
+import { Heart, LayoutDashboard, Users, Handshake, FileBarChart } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 export default function Navbar() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const role = (session as any)?.user?.role;
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      update();
+    }
+  }, [pathname]);
 
   return (
     <nav className="sticky top-0 z-50 w-full backdrop-blur-md bg-white/90 border-b border-[#E1D8C9] shadow-sm">
@@ -42,15 +49,11 @@ export default function Navbar() {
                   <Users className="w-4 h-4" /> Students
                 </Link>
                 <Link href={role === "ADMIN" ? "/admin" : "/staff"} className={`flex items-center gap-1 text-sm font-medium ${pathname.includes('/admin') || pathname.includes('/staff') && !pathname.includes('syllabus') ? 'text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1' : 'text-stone-500 hover:text-stone-800 transition-colors'}`}>
-                  <Handshake className="w-4 h-4" /> Placements
+                  <LayoutDashboard className="w-4 h-4" /> {role === "ADMIN" ? "Admin Portal" : "Staff Portal"}
                 </Link>
                 <Link href="/attendance" className={`flex items-center gap-1 text-sm font-medium ${pathname.includes('/attendance') ? 'text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1' : 'text-stone-500 hover:text-stone-800 transition-colors'}`}>
                   <FileBarChart className="w-4 h-4" /> Reports
                 </Link>
-                <Link href="#" className="flex items-center gap-1 text-sm font-medium text-stone-500 hover:text-stone-800 transition-colors" onClick={(e) => { e.preventDefault(); alert("Settings page coming soon!"); }}>
-                  <Settings className="w-4 h-4" /> Settings
-                </Link>
-                <Link href="/staff" className="text-stone-500 hover:text-stone-800 px-3 py-2 text-sm font-medium bg-stone-50 rounded-full border border-stone-200">Staff Portal</Link>
               </>
             )}
 

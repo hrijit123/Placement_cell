@@ -20,8 +20,8 @@ const PORTALS: Portal[] = [
   {
     key: "admin",
     title: "Admin Portal",
-    description: "Manage NGO placement records, attendance, users, and system settings.",
-    features: ["Placement Management", "Student & Employer Management", "Reports & Analytics", "System Configuration"],
+    description: "Manage NGO placement records, attendance, users, and organization data.",
+    features: ["Placement Management", "Student & Employer Management", "Reports & Analytics", "Access Control"],
     role: "ADMIN",
     accent: "hover:border-emerald-700 text-emerald-800",
     iconBg: "bg-emerald-50 text-emerald-700",
@@ -145,9 +145,18 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
     );
   }
 
+  let visiblePortals = PORTALS;
+  if (signedInRole === "STUDENT") {
+    visiblePortals = PORTALS.filter(p => p.key === "student");
+  } else if (signedInRole === "TEACHER") {
+    visiblePortals = PORTALS.filter(p => p.key === "teacher" || p.key === "staff");
+  } else if (signedInRole === "ADMIN") {
+    visiblePortals = PORTALS.filter(p => p.key === "admin");
+  }
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-      {PORTALS.map((portal) => (
+    <div className={`grid grid-cols-1 md:grid-cols-2 ${visiblePortals.length >= 4 ? 'xl:grid-cols-4' : (visiblePortals.length === 1 ? 'max-w-md mx-auto' : 'max-w-3xl mx-auto')} gap-6`}>
+      {visiblePortals.map((portal) => (
         <div
           key={portal.key}
           className={`relative bg-white border border-stone-200 rounded-2xl p-8 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 ${portal.accent}`}

@@ -57,6 +57,70 @@ const DATE_FIELDS: { key: keyof StaffRecord; label: string }[] = [
 
 const toDateInput = (v: string | null | undefined) => (v ? v.slice(0, 10) : "");
 
+function AssignClassModal({ teacher, onClose, onAssigned }: { teacher: Teacher, onClose: () => void, onAssigned: () => void }) {
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/predefined-classes")
+      .then(r => r.json())
+      .then(data => { setClasses(data); setLoading(false); });
+  }, []);
+
+  const handleAssign = async () => {
+    if (!selectedClass) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/staff/${teacher.id}/assign-class`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ className: selectedClass })
+      });
+      if (res.ok) onAssigned();
+      else alert("Failed to assign class");
+    } catch (e) {
+      alert("An error occurred");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+        <h3 className="font-bold text-lg mb-1 text-stone-800">Assign Class</h3>
+        <p className="text-sm text-stone-500 mb-4">Select a class for {teacher.name}.</p>
+        
+        {loading ? <div className="text-sm text-stone-500 mb-4">Loading classes...</div> : (
+          <select 
+            value={selectedClass} 
+            onChange={e => setSelectedClass(e.target.value)}
+            className="w-full border border-stone-300 rounded p-2 mb-4"
+          >
+            <option value="">-- Select Class --</option>
+            {classes.map(c => (
+              <option key={c.id} value={c.name}>{c.name}</option>
+            ))}
+          </select>
+        )}
+        
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-stone-600">Cancel</button>
+          <button 
+            onClick={handleAssign} 
+            disabled={!selectedClass || saving}
+            className="px-4 py-2 bg-emerald-700 text-white text-sm font-bold rounded disabled:opacity-50"
+          >
+            {saving ? "Assigning..." : "Assign"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function StaffRecordsClient() {
   const [teachers, setTeachers] = useState<Teacher[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +128,7 @@ export default function StaffRecordsClient() {
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [assignTeacher, setAssignTeacher] = useState<Teacher | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -133,6 +198,13 @@ export default function StaffRecordsClient() {
 
   return (
     <div className="space-y-4">
+      {assignTeacher && (
+        <AssignClassModal 
+          teacher={assignTeacher} 
+          onClose={() => setAssignTeacher(null)} 
+          onAssigned={() => { setAssignTeacher(null); load(); }} 
+        />
+      )}
       {teachers.map((t) => {
         const isOpen = openId === t.id;
         let increments: Increment[] = [];
@@ -143,11 +215,8 @@ export default function StaffRecordsClient() {
 
         return (
           <div key={t.id} className="bg-white border border-[#E1D8C9] rounded shadow-sm">
-            <button
-              onClick={() => (isOpen ? setOpenId(null) : openEditor(t))}
-              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[#FAF8F3] transition-colors"
-            >
-              <div>
+            <div className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-[#FAF8F3] transition-colors border-b border-transparent">
+              <div className="flex-1 cursor-pointer" onClick={() => (isOpen ? setOpenId(null) : openEditor(t))}>
                 <p className="font-semibold text-[#2C241B]">{t.name || "Unnamed"} <span className="font-normal text-sm text-[#8B7D6B]">· {t.email}</span></p>
                 <p className="text-sm text-[#6B5E4C]">
                   {t.staffRecord?.designation || "No designation set"}
@@ -155,8 +224,18 @@ export default function StaffRecordsClient() {
                   {t.staffRecord?.subject ? ` · ${t.staffRecord.subject}` : ""}
                 </p>
               </div>
-              <span className="text-sm text-[#8B7D6B]">{isOpen ? "▲ Close" : "▼ View / Edit"}</span>
-            </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setAssignTeacher(t); }}
+                  className="px-3 py-1 bg-[#2D4A22] text-white text-xs font-semibold rounded hover:bg-emerald-800 transition-colors"
+                >
+                  Assign Class
+                </button>
+                <button onClick={() => (isOpen ? setOpenId(null) : openEditor(t))} className="text-sm text-[#8B7D6B] w-20 text-right">
+                  {isOpen ? "▲ Close" : "▼ Edit"}
+                </button>
+              </div>
+            </div>
 
             {isOpen && (
               <div className="border-t border-[#F5F0E6] px-6 py-6">
