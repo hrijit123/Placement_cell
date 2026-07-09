@@ -92,11 +92,12 @@ model User {
 
 model Profile {
   id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   // NGO Universal ID
   studentId      String? @unique
+  name           String?
 
   // ID card / contact details
   phone          String?

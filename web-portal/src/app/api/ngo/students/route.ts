@@ -57,8 +57,8 @@ export async function GET(req: Request) {
         
         return [
           p.studentId || "N/A",
-          `"${p.user?.name || ""}"`,
-          `"${p.user?.email || ""}"`,
+          `"${p.name || p.user?.name || ""}"`,
+          `"${p.user?.email || "Unclaimed"}"`,
           `"${p.cohorts.map(c => c.name).join(", ")}"`,
           placements.length,
           latestPlacement?.salary || "N/A"

@@ -3,14 +3,14 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 
-export default async function RouterPage({ searchParams }: { searchParams: Promise<{ role?: string }> }) {
+export default async function RouterPage({ searchParams }: { searchParams: Promise<{ role?: string; studentPin?: string }> }) {
   const session = await getServerSession(authOptions);
   
   if (!session?.user?.email) {
     redirect("/");
   }
 
-  const { role: requestedRole } = await searchParams;
+  const { role: requestedRole, studentPin } = await searchParams;
 
   // Find the user in DB
   let user = await prisma.user.findUnique({
@@ -37,19 +37,37 @@ export default async function RouterPage({ searchParams }: { searchParams: Promi
   } else if (finalRole === "TEACHER") {
     redirect("/database");
   } else if (finalRole === "STUDENT") {
-    // Check if profile exists
+    // Check if profile is already linked to this Google User
     let profile = await prisma.profile.findUnique({
       where: { userId: user.id }
     });
 
-    if (!profile) {
-      // Create profile with a new student ID if they don't have one
-      const newStudentId = `STU-${Math.floor(10000 + Math.random() * 90000)}`;
-      profile = await prisma.profile.create({
-        data: {
-          userId: user.id,
-          studentId: newStudentId
-        }
+    if (profile) {
+      // Already claimed, verify they entered the correct PIN
+      if (studentPin && profile.studentId !== studentPin) {
+        redirect("/?error=Invalid_Student_ID");
+      }
+    } else {
+      // First time logging in, claim the profile using the PIN
+      if (!studentPin) {
+        redirect("/?error=Student_ID_Required");
+      }
+      
+      const unclaimed = await prisma.profile.findUnique({
+        where: { studentId: studentPin }
+      });
+      
+      if (!unclaimed) {
+        redirect("/?error=Invalid_Student_ID");
+      }
+      if (unclaimed.userId) {
+        redirect("/?error=ID_Already_Claimed");
+      }
+      
+      // Claim the profile!
+      profile = await prisma.profile.update({
+        where: { id: unclaimed.id },
+        data: { userId: user.id }
       });
     }
 

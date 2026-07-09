@@ -7,7 +7,8 @@ import { useSession } from "next-auth/react";
 type StudentRecord = {
   id: string;
   studentId: string | null;
-  user: { name: string | null; email: string | null };
+  name: string | null;
+  user: { name: string | null; email: string | null } | null;
   cohorts: { name: string }[];
   careerTrack: any[];
 };
@@ -18,24 +19,32 @@ export default function DatabaseHome() {
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showPreRegister, setShowPreRegister] = useState(false);
+  const [newStudentName, setNewStudentName] = useState("");
+  const [preRegisterMsg, setPreRegisterMsg] = useState("");
   const role = (session?.user as any)?.role;
+
+  const fetchStudents = () => {
+    fetch("/api/ngo/students")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setStudents(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch students", err);
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
     if (status === "authenticated" && (role === "ADMIN" || role === "TEACHER")) {
-      fetch("/api/ngo/students")
-        .then((res) => res.json())
-        .then((data) => {
-          if (Array.isArray(data)) setStudents(data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Failed to fetch students", err);
-          setLoading(false);
-        });
+      fetchStudents();
     } else if (status !== "loading") {
       setLoading(false);
     }
   }, [status, role]);
+
 
   if (status === "loading" || loading) {
     return (
@@ -59,16 +68,46 @@ export default function DatabaseHome() {
 
   const filteredStudents = students.filter((s) => {
     const q = search.toLowerCase();
+    const resolvedName = s.name || s.user?.name || "";
     return (
       (s.studentId && s.studentId.toLowerCase().includes(q)) ||
-      (s.user.name && s.user.name.toLowerCase().includes(q)) ||
-      (s.user.email && s.user.email.toLowerCase().includes(q)) ||
+      resolvedName.toLowerCase().includes(q) ||
+      (s.user?.email && s.user.email.toLowerCase().includes(q)) ||
       s.cohorts.some((c) => c.name.toLowerCase().includes(q))
     );
   });
 
   const handleExport = () => {
     window.location.href = "/api/ngo/students?export=true";
+  };
+
+  const handlePreRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPreRegisterMsg("Registering...");
+    try {
+      const names = newStudentName.split("\n").map(n => n.trim()).filter(n => n.length > 0);
+      if (names.length === 0) {
+        setPreRegisterMsg("Please enter at least one name.");
+        return;
+      }
+      
+      const res = await fetch("/api/ngo/students/pre-register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPreRegisterMsg(`Success! Generated IDs:\n${data.map((p: any) => `${p.name}: ${p.studentId}`).join("\n")}`);
+        setNewStudentName("");
+        fetchStudents();
+      } else {
+        const err = await res.json();
+        setPreRegisterMsg(err.error || "Failed to register");
+      }
+    } catch (e) {
+      setPreRegisterMsg("An error occurred.");
+    }
   };
 
   return (
@@ -83,7 +122,13 @@ export default function DatabaseHome() {
                 : "View the full 360° database of all students."}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={() => setShowPreRegister(true)}
+              className="px-4 py-2 bg-[#2D4A22] text-white font-semibold rounded hover:bg-[#1f3317] transition-colors text-sm"
+            >
+              + Pre-Register Student
+            </button>
             <button
               onClick={handleExport}
               className="px-4 py-2 border border-[#2D4A22] text-[#2D4A22] font-semibold rounded hover:bg-[#2D4A22] hover:text-white transition-colors flex items-center gap-2 text-sm"
@@ -126,21 +171,21 @@ export default function DatabaseHome() {
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((student) => (
-                    <tr key={student.id} className="hover:bg-[#FAF8F3] transition-colors">
-                      <td className="px-6 py-4 font-mono text-[#2D4A22] font-medium">
-                        {student.studentId || "N/A"}
+                  filteredStudents.map((s) => (
+                    <tr key={s.id} className="border-b border-stone-100 hover:bg-stone-50 transition-colors cursor-pointer" onClick={() => router.push(`/database/${s.id}`)}>
+                      <td className="px-6 py-4 font-mono text-sm text-[#8B7D6B] whitespace-nowrap">
+                        {s.studentId || <span className="text-stone-300">Pending</span>}
                       </td>
-                      <td className="px-6 py-4 font-semibold text-[#2C241B]">
-                        {student.user.name || "Unknown"}
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-[#2C241B]">{s.name || s.user?.name || "Unknown"}</div>
                       </td>
                       <td className="px-6 py-4 text-[#6B5E4C]">
-                        {student.user.email || "No email"}
+                        {s.user?.email || "No email"}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-1">
-                          {student.cohorts.length > 0 ? (
-                            student.cohorts.map((c) => (
+                          {s.cohorts.length > 0 ? (
+                            s.cohorts.map((c) => (
                               <span key={c.name} className="px-2 py-0.5 bg-[#E1D8C9] rounded text-xs text-[#3E362E]">
                                 {c.name}
                               </span>
@@ -153,9 +198,9 @@ export default function DatabaseHome() {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => {
-                            if (student.studentId) router.push(`/database/${encodeURIComponent(student.studentId)}`);
+                            if (s.studentId) router.push(`/database/${encodeURIComponent(s.studentId)}`);
                           }}
-                          disabled={!student.studentId}
+                          disabled={!s.studentId}
                           className="text-[#2D4A22] hover:underline font-semibold disabled:opacity-50 disabled:no-underline"
                         >
                           View Record &rarr;
@@ -169,6 +214,44 @@ export default function DatabaseHome() {
           </div>
         </div>
       </div>
+
+      {showPreRegister && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-stone-100 flex justify-between items-center">
+              <h2 className="text-xl font-serif font-bold text-[#2C241B]">Pre-Register Student</h2>
+              <button onClick={() => { setShowPreRegister(false); setPreRegisterMsg(""); }} className="text-stone-400 hover:text-stone-600">✕</button>
+            </div>
+            <form onSubmit={handlePreRegister} className="p-6">
+              <p className="text-sm text-stone-600 mb-4">
+                Enter student names (one per line) to generate Student IDs in bulk.
+              </p>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Student Names</label>
+                <textarea
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="John Doe\nJane Smith"
+                  rows={4}
+                  className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                  required
+                />
+              </div>
+              
+              {preRegisterMsg && (
+                <div className="mb-4 p-3 rounded bg-[#FAF8F3] border border-[#E1D8C9] text-sm font-medium text-stone-800 whitespace-pre-wrap">
+                  {preRegisterMsg}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => { setShowPreRegister(false); setPreRegisterMsg(""); }} className="px-4 py-2 border border-stone-300 rounded text-sm text-stone-700 hover:bg-stone-50">Done</button>
+                <button type="submit" className="px-4 py-2 bg-[#2D4A22] text-white rounded text-sm hover:bg-[#1f3317]">Generate ID</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -98,14 +98,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
 
     // --- NOTIFICATIONS ---
     // Notify the student
-    await prisma.notification.create({
-      data: {
-        recipientId: profile.userId,
-        profileId: profile.id,
-        message: `Your ${target} record was marked as ${status} by ${actor.name || 'Admin'}.`,
-        actionUrl: `/router?role=STUDENT`
-      }
-    });
+    if (profile.userId) {
+      await prisma.notification.create({
+        data: {
+          recipientId: profile.userId,
+          profileId: profile.id,
+          message: `Your ${target} record was marked as ${status} by ${actor.name || 'Admin'}.`,
+          actionUrl: `/router?role=STUDENT`
+        }
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

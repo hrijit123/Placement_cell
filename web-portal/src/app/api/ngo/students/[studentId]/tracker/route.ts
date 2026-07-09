@@ -88,6 +88,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       }
     });
 
+    // Send success notification to student (if they have claimed their account)
+    if (profile.userId) {
+      await prisma.notification.create({
+        data: {
+          recipientId: profile.userId,
+          message: `Your career tracker has been updated by ${actor.name || "a teacher"}.`,
+          actionUrl: `/tracker`
+        }
+      });
+    }
+
     // --- AUDIT LOGGING ---
     await prisma.recordAuditLog.create({
       data: {
@@ -105,21 +116,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       
       for (const admin of admins) {
         await prisma.notification.create({
-          data: { recipientId: admin.id, profileId: profile.id, message: `Student ${profile.user.name || studentId} added a new Career Track record.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
+          data: { recipientId: admin.id, profileId: profile.id, message: `Student ${profile.user?.name || studentId} added a new Career Track record.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
         });
       }
       for (const tId of teacherIds) {
         await prisma.notification.create({
-          data: { recipientId: tId, profileId: profile.id, message: `Student ${profile.user.name || studentId} added a new Career Track record.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
+          data: { recipientId: tId, profileId: profile.id, message: `Student ${profile.user?.name || studentId} added a new Career Track record.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
         });
       }
     } else {
-      const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
-      for (const admin of admins) {
-        await prisma.notification.create({
-          data: { recipientId: admin.id, profileId: profile.id, message: `${role} ${actor.name || actor.email} added a Career Track record for ${profile.user.name || studentId}.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
-        });
-      }
+        const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
+        for (const admin of admins) {
+          await prisma.notification.create({
+            data: {
+              recipientId: admin.id,
+              profileId: profile.id,
+              message: `Teacher ${actor.name || actor.email} updated career records for student ${profile.user?.name || studentId} out of cohort.`,
+              actionUrl: `/database/${profile.studentId || profile.id}`
+            }
+          });
+        }
     }
 
     return NextResponse.json({ success: true });

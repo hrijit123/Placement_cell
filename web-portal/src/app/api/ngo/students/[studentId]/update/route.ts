@@ -128,12 +128,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       
       for (const admin of admins) {
         await prisma.notification.create({
-          data: { recipientId: admin.id, profileId: profile.id, message: `Student ${profile.user.name || studentId} updated their profile.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
+          data: { recipientId: admin.id, profileId: profile.id, message: `Student ${profile.user?.name || studentId} updated their profile.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
         });
       }
       for (const tId of teacherIds) {
         await prisma.notification.create({
-          data: { recipientId: tId, profileId: profile.id, message: `Student ${profile.user.name || studentId} updated their profile.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
+          data: { recipientId: tId, profileId: profile.id, message: `Student ${profile.user?.name || studentId} updated their profile.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
         });
       }
     } else {
@@ -141,7 +141,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       const admins = await prisma.user.findMany({ where: { role: 'ADMIN' } });
       for (const admin of admins) {
         await prisma.notification.create({
-          data: { recipientId: admin.id, profileId: profile.id, message: `${role} ${actor.name || actor.email} updated profile for ${profile.user.name || studentId}.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
+          data: { recipientId: admin.id, profileId: profile.id, message: `${role} ${actor.name || actor.email} updated profile for ${profile.user?.name || studentId}.`, actionUrl: `/database?search=${profile.studentId || profile.id}` }
         });
       }
     }

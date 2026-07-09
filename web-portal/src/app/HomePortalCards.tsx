@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Portal = {
   key: string;
@@ -63,14 +63,24 @@ const PORTALS: Portal[] = [
 
 export default function HomePortalCards({ signedInRole }: { signedInRole?: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [selected, setSelected] = useState<Portal | null>(null);
   const [pin, setPin] = useState("");
   const [pinRequired, setPinRequired] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(searchParams.get("error")?.replace(/_/g, " ") || "");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (selected?.role === "STUDENT") {
+      if (!pin || pin.trim() === "") {
+        setError("Student ID (PIN) is required");
+        return;
+      }
+      signIn("google", { callbackUrl: `/router?role=${selected?.role}&studentPin=${encodeURIComponent(pin.trim())}` });
+      return;
+    }
 
     if (pinRequired) {
       const res = await fetch("/api/auth/verify-pin", {
@@ -94,7 +104,7 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
       router.push(`/router?role=${portal.role}`);
     } else {
       setSelected(portal);
-      setPinRequired(portal.role === "ADMIN" || portal.role === "TEACHER");
+      setPinRequired(true); // Now everyone needs a PIN (Admin/Teacher generic, Student uses Student ID)
       setError("");
       setPin("");
     }
@@ -110,8 +120,11 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
         <form className="w-full flex flex-col gap-3 mb-4">
           {pinRequired && (
             <div>
+              <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">
+                {selected.role === "STUDENT" ? "Student ID (PIN)" : "Access PIN"}
+              </label>
               <input 
-                type="password" 
+                type={selected.role === "STUDENT" ? "text" : "password"}
                 placeholder="Enter PIN"
                 value={pin}
                 onChange={(e) => setPin(e.target.value)}

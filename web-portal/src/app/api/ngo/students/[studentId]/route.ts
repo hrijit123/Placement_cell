@@ -123,7 +123,7 @@ export async function GET(
             data: {
               recipientId: admin.id,
               profileId: studentProfile.id,
-              message: `Teacher ${viewerUser.name || viewerUser.email} performed an out-of-cohort lookup for student ${studentProfile.user.name || studentProfile.studentId}. Reason: ${overrideReason}`,
+              message: `Teacher ${viewerUser.name || viewerUser.email} performed an out-of-cohort lookup for student ${studentProfile.name || studentProfile.user?.name || studentProfile.studentId}. Reason: ${overrideReason}`,
               actionUrl: `/database?search=${studentProfile.studentId || studentProfile.id}`
             }
           });
@@ -134,9 +134,9 @@ export async function GET(
     // --- BUILD DOSSIER PAYLOAD ---
     const dossier = {
       studentId: studentProfile.studentId,
-      name: studentProfile.user.name,
-      email: studentProfile.user.email,
-      image: studentProfile.user.image,
+      name: studentProfile.name || studentProfile.user?.name || "Student",
+      email: studentProfile.user?.email || "Unclaimed",
+      image: studentProfile.user?.image,
       isRedacted,
       personalDetails: {
         headline: studentProfile.headline,
@@ -177,12 +177,12 @@ export async function GET(
         nextMove: ct.nextMove,
         createdAt: ct.createdAt
       })),
-      attendance: studentProfile.user.attendance.map((att: any) => ({
+      attendance: studentProfile.user?.attendance?.map((att: any) => ({
         id: att.id,
         date: att.date,
         status: att.status,
         classOrEvent: att.classOrEvent
-      }))
+      })) || []
     };
 
     return NextResponse.json(dossier);

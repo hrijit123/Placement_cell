@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
@@ -98,7 +99,7 @@ export default async function Home() {
       ]);
       recentPlacements = placements.map((p) => ({
         id: p.id,
-        student: p.profile.user.name || "Student",
+        student: p.profile.name || p.profile.user?.name || "Student",
         company: p.company,
         role: p.role,
       }));
@@ -151,7 +152,9 @@ export default async function Home() {
         {/* ---- Portal cards ---- */}
         {!session && (
           <section className="mb-12">
-            <HomePortalCards signedInRole={role} />
+            <Suspense fallback={<div className="h-[200px] bg-stone-100 animate-pulse rounded-2xl" />}>
+              <HomePortalCards signedInRole={role} />
+            </Suspense>
           </section>
         )}
 
