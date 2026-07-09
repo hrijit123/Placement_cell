@@ -16,15 +16,12 @@ export default async function ReportCardsPage() {
   let students;
   
   if (role === "ADMIN") {
-    students = await prisma.user.findMany({
-      where: { role: "STUDENT" },
+    students = await prisma.profile.findMany({
       include: {
-        profile: {
-          include: {
-            cohorts: true,
-            examRecords: true
-          }
-        }
+        user: true,
+        cohorts: true,
+        examRecords: { orderBy: { createdAt: 'desc' } },
+        careerTrack: { orderBy: { createdAt: 'desc' } }
       },
       orderBy: { name: 'asc' }
     });
@@ -36,24 +33,15 @@ export default async function ReportCardsPage() {
     
     const cohortIds = teacherUser?.cohortsLed.map((c: any) => c.id) || [];
     
-    students = await prisma.user.findMany({
+    students = await prisma.profile.findMany({
       where: {
-        role: "STUDENT",
-        profile: {
-          cohorts: {
-            some: {
-              id: { in: cohortIds }
-            }
-          }
-        }
+        cohorts: { some: { id: { in: cohortIds } } }
       },
       include: {
-        profile: {
-          include: {
-            cohorts: true,
-            examRecords: true
-          }
-        }
+        user: true,
+        cohorts: true,
+        examRecords: { orderBy: { createdAt: 'desc' } },
+        careerTrack: { orderBy: { createdAt: 'desc' } }
       },
       orderBy: { name: 'asc' }
     });
@@ -73,16 +61,16 @@ export default async function ReportCardsPage() {
         </div>
         
         {/* We map `examRecords` explicitly because the type needs to match `StudentData` expected in client */}
-        <ReportCardsClient initialStudents={students.map(s => ({
-          id: s.id,
-          name: s.name || '',
-          email: s.email || '',
-          profile: s.profile ? {
-            id: s.profile.id,
-            studentId: s.profile.studentId || '',
-            cohorts: s.profile.cohorts.map(c => ({ name: c.name }))
-          } : null,
-          examRecords: s.profile?.examRecords || []
+        <ReportCardsClient initialStudents={students.map((s: any) => ({
+          id: s.user?.id || s.id, // User ID if exists, fallback to profile ID
+          name: s.name || s.user?.name || '',
+          email: s.user?.email || '',
+          profile: {
+            id: s.id,
+            studentId: s.studentId || '',
+            cohorts: s.cohorts?.map((c: any) => ({ name: c.name })) || []
+          },
+          examRecords: s.examRecords || []
         }))} />
       </div>
     </div>

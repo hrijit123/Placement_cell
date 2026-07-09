@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const AttendanceSchema = z.object({
-  userId: z.string().min(1),
+  profileId: z.string().min(1),
   date: z.string().min(1),
   status: z.enum(["PRESENT", "ABSENT", "LATE", "LEAVE"]),
   classOrEvent: z.string().max(300).optional().nullable(),
@@ -35,14 +35,30 @@ export async function GET(req: Request) {
   const from = new Date(y, m - 1, 1);
   const to = new Date(y, m, 1);
 
+  let whereClause: any = { date: { gte: from, lt: to } };
+
+  if (role === "TEACHER") {
+    const dbUser = await prisma.user.findUnique({ where: { email: session.user?.email || "" } });
+    if (dbUser) {
+      whereClause = {
+        ...whereClause,
+        profile: {
+          cohorts: {
+            some: { teacherId: dbUser.id }
+          }
+        }
+      };
+    }
+  }
+
   const records = await prisma.attendance.findMany({
-    where: { date: { gte: from, lt: to } },
-    include: { user: { select: { id: true, name: true, profile: { select: { studentId: true } } } } },
+    where: whereClause,
+    include: { profile: { select: { id: true, name: true, studentId: true, user: { select: { name: true } } } } },
     orderBy: { date: "asc" },
   });
 
   type Row = {
-    userId: string;
+    profileId: string;
     name: string;
     studentId: string | null;
     PRESENT: number;
@@ -55,15 +71,15 @@ export async function GET(req: Request) {
   const totals = { PRESENT: 0, ABSENT: 0, LATE: 0, LEAVE: 0, total: 0 };
 
   for (const r of records) {
-    let row = byStudent.get(r.userId);
+    let row = byStudent.get(r.profileId);
     if (!row) {
       row = {
-        userId: r.userId,
-        name: r.user.name || "Unknown",
-        studentId: r.user.profile?.studentId || null,
+        profileId: r.profileId,
+        name: r.profile.name || r.profile.user?.name || "Unknown",
+        studentId: r.profile.studentId || null,
         PRESENT: 0, ABSENT: 0, LATE: 0, LEAVE: 0, total: 0,
       };
-      byStudent.set(r.userId, row);
+      byStudent.set(r.profileId, row);
     }
     row[r.status] += 1;
     row.total += 1;
@@ -112,7 +128,7 @@ export async function POST(req: Request) {
   if (!parsedBody.success) {
     return NextResponse.json({ error: "Invalid attendance payload" }, { status: 400 });
   }
-  const { userId, date, status, classOrEvent, notes } = parsedBody.data as any; // notes added from HEAD
+  const { profileId, date, status, classOrEvent, notes } = parsedBody.data as any;
 
   // --- ACCESS CONTROL ---
   if (role === "TEACHER") {
@@ -122,7 +138,7 @@ export async function POST(req: Request) {
     });
     
     const targetStudentProfile = await prisma.profile.findUnique({
-      where: { userId },
+      where: { id: profileId },
       include: { cohorts: true }
     });
     
@@ -140,7 +156,7 @@ export async function POST(req: Request) {
   }
   const attendance = await prisma.attendance.create({
     data: {
-      userId,
+      profileId,
       date: new Date(date),
       status,
       classOrEvent,

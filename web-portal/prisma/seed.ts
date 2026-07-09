@@ -118,7 +118,7 @@ async function main() {
       }
       
       attendanceRecords.push({
-        userId: student.id,
+        profileId: student.profile!.id,
         date,
         status,
         notes,

@@ -75,7 +75,6 @@ model User {
   // Core Relations (onDelete Restrict to preserve NGO records)
   profile          Profile?
   jobsPosted       Job[]              @relation("RecruiterJobs")
-  attendance       Attendance[]       @relation("StudentAttendance")
   
   // Cohorts managed by a teacher
   cohortsLed       Cohort[]           @relation("TeacherCohorts")
@@ -136,6 +135,7 @@ model Profile {
   notifications  Notification[]
   auditLogs      RecordAuditLog[]
   examRecords    ExamRecord[]
+  attendance     Attendance[]     @relation("ProfileAttendance")
 }
 
 // HR-style record for teachers, maintained by admins.
@@ -294,8 +294,8 @@ model CareerRecord {
 
 model Attendance {
   id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation("StudentAttendance", fields: [userId], references: [id], onDelete: Restrict)
+  profileId   String
+  profile     Profile  @relation("ProfileAttendance", fields: [profileId], references: [id], onDelete: Restrict)
   
   date        DateTime
   status      AttendanceStatus @default(PRESENT)

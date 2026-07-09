@@ -37,8 +37,8 @@ export default async function Home() {
   if (session) {
     const [totalStudents, eligible, placedGroups, interviewGroups, employerGroups, upcomingCount] =
       await Promise.all([
-        prisma.user.count({ where: { role: "STUDENT" } }),
-        prisma.profile.count({ where: { user: { role: "STUDENT" }, availability: { not: null } } }),
+        prisma.profile.count(),
+        prisma.profile.count({ where: { availability: { not: null } } }),
         prisma.careerRecord.groupBy({
           by: ["profileId"],
           where: {

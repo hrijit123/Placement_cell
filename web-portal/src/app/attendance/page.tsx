@@ -17,10 +17,9 @@ export default async function AttendancePage() {
   let students;
   
   if (role === "ADMIN") {
-    students = await prisma.user.findMany({
-      where: { role: "STUDENT" },
+    students = await prisma.profile.findMany({
       include: {
-        profile: true,
+        user: true,
         attendance: {
           orderBy: { date: 'desc' },
           take: 5
@@ -37,19 +36,16 @@ export default async function AttendancePage() {
     
     const cohortIds = teacherUser?.cohortsLed.map(c => c.id) || [];
     
-    students = await prisma.user.findMany({
+    students = await prisma.profile.findMany({
       where: {
-        role: "STUDENT",
-        profile: {
-          cohorts: {
-            some: {
-              id: { in: cohortIds }
-            }
+        cohorts: {
+          some: {
+            id: { in: cohortIds }
           }
         }
       },
       include: {
-        profile: true,
+        user: true,
         attendance: {
           orderBy: { date: 'desc' },
           take: 5

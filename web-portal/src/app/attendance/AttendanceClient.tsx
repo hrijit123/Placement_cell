@@ -10,7 +10,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 type MonthlyRow = {
-  userId: string;
+  profileId: string;
   name: string;
   studentId: string | null;
   PRESENT: number;
@@ -38,18 +38,18 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
   const [report, setReport] = useState<MonthlyReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
 
-  const markAttendance = async (userId: string, status: string) => {
+  const markAttendance = async (profileId: string, status: string) => {
     setLoading(true);
     try {
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, date: selectedDate, status, classOrEvent: eventDesc })
+        body: JSON.stringify({ profileId, date: selectedDate, status, classOrEvent: eventDesc })
       });
       if (res.ok) {
         const newRecord = await res.json();
         setStudents(prev => prev.map(s => {
-          if (s.id === userId) {
+          if (s.id === profileId) {
             return { ...s, attendance: [newRecord, ...s.attendance] };
           }
           return s;
@@ -133,8 +133,8 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
                 );
                 return (
                   <tr key={student.id} className="border-b border-[#E1D8C9]">
-                    <td className="p-3 font-semibold">{student.name || "Unknown"}</td>
-                    <td className="p-3 font-mono">{student.profile?.studentId || "N/A"}</td>
+                    <td className="p-3 font-semibold">{student.name || student.user?.name || "Unknown"}</td>
+                    <td className="p-3 font-mono">{student.studentId || "N/A"}</td>
                     <td className="p-3">
                       <div className="flex gap-1 flex-wrap">
                         {student.attendance.slice(0, 3).map((a: any) => (
@@ -239,7 +239,7 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
                     </thead>
                     <tbody>
                       {report.rows.map((r) => (
-                        <tr key={r.userId} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3]">
+                        <tr key={r.profileId} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3]">
                           <td className="p-3 font-semibold">{r.name}</td>
                           <td className="p-3 font-mono text-xs">{r.studentId || "N/A"}</td>
                           <td className="p-3 text-center text-green-900 font-bold">{r.PRESENT}</td>

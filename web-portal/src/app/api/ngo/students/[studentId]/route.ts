@@ -53,13 +53,10 @@ export async function GET(
     const studentProfile = await prisma.profile.findUnique({
       where: { studentId },
       include: {
-        user: {
-          include: {
-            attendance: { 
-              orderBy: { date: 'desc' },
-              take: isFullHistory ? undefined : 5
-            }
-          }
+        user: true,
+        attendance: { 
+          orderBy: { date: 'desc' },
+          take: isFullHistory ? undefined : 5
         },
         cohorts: true,
         careerTrack: {
@@ -178,7 +175,7 @@ export async function GET(
         nextMove: ct.nextMove,
         createdAt: ct.createdAt
       })),
-      attendance: studentProfile.user?.attendance?.map((att: any) => ({
+      attendance: studentProfile.attendance?.map((att: any) => ({
         id: att.id,
         date: att.date,
         status: att.status,

@@ -119,7 +119,7 @@ export default function DatabaseHome() {
       });
       if (res.ok) {
         const data = await res.json();
-        setPreRegisterMsg(`Success! Generated ID: ${data.studentId}`);
+        setPreRegisterMsg(`Success! Give this PIN to the student: ${data.studentId} (They must use it to sign in)`);
         setFormData({ name: "", phone: "", className: "", vocation: "", disabilityInfo: "", expectedSalary: "", cohortId: "" });
         fetchStudents();
       } else {

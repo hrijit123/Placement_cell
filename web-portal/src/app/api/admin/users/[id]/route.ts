@@ -18,6 +18,29 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
     }
 
+    // Safely unlink Profile instead of hard deletion to avoid restrict constraint errors
+    await prisma.profile.updateMany({
+      where: { userId: id },
+      data: { userId: null }
+    });
+
+    // Delete NextAuth/User logs that are tied with Restrict/Cascade where applicable
+    await prisma.accessLog.deleteMany({ where: { actorId: id } });
+    await prisma.session.deleteMany({ where: { userId: id } });
+    await prisma.account.deleteMany({ where: { userId: id } });
+    await prisma.syllabusPlan.deleteMany({ where: { teacherId: id } });
+    await prisma.cohort.deleteMany({ where: { teacherId: id } });
+    
+    // Unlink Audit Logs
+    await prisma.recordAuditLog.deleteMany({
+      where: { actorId: id }
+    });
+    
+    // Delete Staff and Job records
+    await prisma.staffRecord.deleteMany({ where: { userId: id } });
+    await prisma.job.deleteMany({ where: { recruiterId: id } });
+    
+    // Now safe to delete the user
     await prisma.user.delete({
       where: { id },
     });
