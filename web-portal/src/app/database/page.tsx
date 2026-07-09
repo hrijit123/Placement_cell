@@ -303,6 +303,7 @@ export default function DatabaseHome() {
                     value={formData.cohortId}
                     onChange={(e) => setFormData({...formData, cohortId: e.target.value})}
                     className="w-full border border-stone-300 px-3 py-2 rounded focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+                    required
                   >
                     <option value="">-- None / Default --</option>
                     {cohorts.map((c) => (

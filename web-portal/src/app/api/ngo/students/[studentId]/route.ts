@@ -138,6 +138,7 @@ export async function GET(
       email: studentProfile.user?.email || "Unclaimed",
       image: studentProfile.user?.image,
       isRedacted,
+      cohorts: studentProfile.cohorts,
       personalDetails: {
         headline: studentProfile.headline,
         address: studentProfile.address,

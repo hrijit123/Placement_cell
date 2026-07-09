@@ -43,36 +43,11 @@ export default async function RouterPage({ searchParams }: { searchParams: Promi
     });
 
     if (profile) {
-      // Already claimed, verify they entered the correct PIN
-      if (studentPin && profile.studentId !== studentPin) {
-        redirect("/?error=Invalid_Student_ID");
-      }
+      redirect(`/database/${profile.studentId}`);
     } else {
-      // First time logging in, claim the profile using the PIN
-      if (!studentPin) {
-        redirect("/?error=Student_ID_Required");
-      }
-      
-      const unclaimed = await prisma.profile.findUnique({
-        where: { studentId: studentPin }
-      });
-      
-      if (!unclaimed) {
-        redirect("/?error=Invalid_Student_ID");
-      }
-      if (unclaimed.userId) {
-        redirect("/?error=ID_Already_Claimed");
-      }
-      
-      // Claim the profile!
-      profile = await prisma.profile.update({
-        where: { id: unclaimed.id },
-        data: { userId: user.id }
-      });
+      // First time logging in, go to onboarding to enter PIN or self-register
+      redirect("/student/onboarding");
     }
-
-    // Redirect to their own dossier
-    redirect(`/database/${profile.studentId}`);
   } else {
     redirect("/");
   }

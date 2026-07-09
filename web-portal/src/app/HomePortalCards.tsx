@@ -74,11 +74,7 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
     setError("");
 
     if (selected?.role === "STUDENT") {
-      if (!pin || pin.trim() === "") {
-        setError("Student ID (PIN) is required");
-        return;
-      }
-      signIn("google", { callbackUrl: `/router?role=${selected?.role}&studentPin=${encodeURIComponent(pin.trim())}` });
+      signIn("google", { callbackUrl: `/router?role=${selected?.role}` });
       return;
     }
 
@@ -104,7 +100,7 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
       router.push(`/router?role=${portal.role}`);
     } else {
       setSelected(portal);
-      setPinRequired(true); // Now everyone needs a PIN (Admin/Teacher generic, Student uses Student ID)
+      setPinRequired(portal.role !== "STUDENT");
       setError("");
       setPin("");
     }
@@ -164,12 +160,18 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
   }
 
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto ${visiblePortals.length === 1 ? 'lg:grid-cols-1 max-w-md' : visiblePortals.length === 2 ? 'lg:grid-cols-2 max-w-3xl' : ''}`}>
-      {visiblePortals.map((portal) => (
-        <div
-          key={portal.key}
-          className={`relative bg-white border border-stone-200 rounded-2xl p-8 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 ${portal.accent}`}
-        >
+    <div className="max-w-6xl mx-auto">
+      {error && !selected && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-center">
+          {error}
+        </div>
+      )}
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${visiblePortals.length === 1 ? 'lg:grid-cols-1 max-w-md mx-auto' : visiblePortals.length === 2 ? 'lg:grid-cols-2 max-w-3xl mx-auto' : ''}`}>
+        {visiblePortals.map((portal) => (
+          <div
+            key={portal.key}
+            className={`relative bg-white border border-stone-200 rounded-2xl p-8 flex flex-col shadow-sm hover:shadow-xl transition-all duration-300 ${portal.accent}`}
+          >
           {!signedInRole && (
             <span className="absolute top-4 right-4 text-stone-300" title="Sign in required">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
@@ -203,6 +205,7 @@ export default function HomePortalCards({ signedInRole }: { signedInRole?: strin
           </button>
         </div>
       ))}
+    </div>
     </div>
   );
 }
