@@ -240,7 +240,22 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
                       max={maxMarks}
                       placeholder={`/ ${maxMarks}`}
                       value={marks[pid] ?? ""}
-                      onChange={e => setMarks({...marks, [pid]: e.target.value})}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          setMarks({...marks, [pid]: val});
+                          return;
+                        }
+                        const num = Number(val);
+                        if (!isNaN(num) && num >= 0 && num <= Number(maxMarks)) {
+                          setMarks({...marks, [pid]: val});
+                        }
+                      }}
+                      onKeyDown={e => {
+                        if (['e', 'E', '+', '-'].includes(e.key)) {
+                          e.preventDefault();
+                        }
+                      }}
                       className="w-32 border border-stone-400 text-stone-900 font-medium rounded px-3 py-1.5 focus:outline-none focus:border-[#2D4A22]"
                     />
                   </td>
@@ -263,7 +278,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
       <div className="p-6 bg-[#FAF8F3] border-t border-[#E1D8C9] flex justify-end">
         <button 
           onClick={handleSaveAll}
-          disabled={saving || !subject.trim()}
+          disabled={saving}
           className="flex items-center gap-2 px-6 py-2.5 bg-[#2D4A22] text-white font-semibold rounded hover:bg-[#1f3418] disabled:opacity-50 transition-colors"
         >
           <Save className="w-4 h-4" />
