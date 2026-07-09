@@ -21,10 +21,10 @@ export default function AssignCohortModal({ profileId, onClose }: AssignCohortMo
   useEffect(() => {
     Promise.all([
       fetch("/api/admin/cohorts").then(res => res.json()),
-      fetch("/api/admin/teachers").then(res => res.json())
-    ]).then(([cohortsData, teachersData]) => {
+      fetch("/api/admin/staff").then(res => res.json())
+    ]).then(([cohortsData, staffData]) => {
       setCohorts(Array.isArray(cohortsData) ? cohortsData : []);
-      setTeachers(Array.isArray(teachersData) ? teachersData : []);
+      setTeachers(Array.isArray(staffData?.teachers) ? staffData.teachers : []);
       setLoading(false);
     });
   }, []);
