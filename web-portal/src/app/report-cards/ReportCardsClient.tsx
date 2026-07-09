@@ -118,7 +118,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
             <input 
               value={academicYear} 
               onChange={e => setAcademicYear(e.target.value)}
-              className="w-full border border-[#E1D8C9] rounded px-3 py-2 text-sm"
+              className="w-full border border-stone-400 text-stone-900 font-medium rounded px-3 py-2 text-sm focus:outline-none focus:border-stone-600"
               placeholder="e.g. 2026-27"
             />
           </div>
@@ -127,7 +127,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
             <input 
               value={subject} 
               onChange={e => setSubject(e.target.value)}
-              className="w-full border border-[#E1D8C9] rounded px-3 py-2 text-sm"
+              className="w-full border border-stone-400 text-stone-900 font-medium rounded px-3 py-2 text-sm focus:outline-none focus:border-stone-600"
               placeholder="e.g. Mathematics"
             />
           </div>
@@ -136,7 +136,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
             <select 
               value={examType} 
               onChange={e => setExamType(e.target.value)}
-              className="w-full border border-[#E1D8C9] rounded px-3 py-2 text-sm bg-white"
+              className="w-full border border-stone-400 text-stone-900 font-medium rounded px-3 py-2 text-sm bg-white focus:outline-none focus:border-stone-600"
             >
               <option value="ia1">Internal Assessment 1</option>
               <option value="ia2">Internal Assessment 2</option>
@@ -152,7 +152,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
               type="number"
               value={maxMarks} 
               onChange={e => setMaxMarks(e.target.value)}
-              className="w-full border border-[#E1D8C9] rounded px-3 py-2 text-sm"
+              className="w-full border border-stone-400 text-stone-900 font-medium rounded px-3 py-2 text-sm focus:outline-none focus:border-stone-600"
             />
           </div>
         </div>
@@ -173,7 +173,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
               placeholder="Search students..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-[#E1D8C9] rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
+              className="w-full pl-9 pr-4 py-2 border border-stone-400 text-stone-900 font-medium rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#2D4A22]"
             />
           </div>
         </div>
@@ -222,7 +222,7 @@ export default function ReportCardsClient({ initialStudents }: { initialStudents
                       placeholder={`/ ${maxMarks}`}
                       value={marks[pid] ?? ""}
                       onChange={e => setMarks({...marks, [pid]: e.target.value})}
-                      className="w-32 border border-[#E1D8C9] rounded px-3 py-1.5 focus:outline-none focus:border-[#2D4A22]"
+                      className="w-32 border border-stone-400 text-stone-900 font-medium rounded px-3 py-1.5 focus:outline-none focus:border-[#2D4A22]"
                     />
                   </td>
                 </tr>
