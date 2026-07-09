@@ -242,14 +242,14 @@ export default function AttendanceClient({ initialStudents }: { initialStudents:
                         <tr key={r.userId} className="border-b border-[#F5F0E6] hover:bg-[#FAF8F3]">
                           <td className="p-3 font-semibold">{r.name}</td>
                           <td className="p-3 font-mono text-xs">{r.studentId || "N/A"}</td>
-                          <td className="p-3 text-center text-green-800">{r.PRESENT}</td>
-                          <td className="p-3 text-center text-amber-700">{r.LATE}</td>
-                          <td className="p-3 text-center text-red-700">{r.ABSENT}</td>
-                          <td className="p-3 text-center text-blue-700">{r.LEAVE}</td>
+                          <td className="p-3 text-center text-green-900 font-bold">{r.PRESENT}</td>
+                          <td className="p-3 text-center text-amber-900 font-bold">{r.LATE}</td>
+                          <td className="p-3 text-center text-red-900 font-bold">{r.ABSENT}</td>
+                          <td className="p-3 text-center text-blue-900 font-bold">{r.LEAVE}</td>
                           <td className="p-3 text-center">{r.total}</td>
                           <td className="p-3 text-right">
                             {r.percentage != null ? (
-                              <span className={`font-semibold ${r.percentage >= 75 ? "text-green-800" : r.percentage >= 50 ? "text-amber-700" : "text-red-700"}`}>
+                              <span className={`font-bold ${r.percentage >= 75 ? "text-green-900" : r.percentage >= 50 ? "text-amber-900" : "text-red-900"}`}>
                                 {r.percentage}%
                               </span>
                             ) : "—"}
