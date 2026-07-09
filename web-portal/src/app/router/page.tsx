@@ -35,7 +35,7 @@ export default async function RouterPage({ searchParams }: { searchParams: Promi
   if (finalRole === "ADMIN") {
     redirect("/admin");
   } else if (finalRole === "TEACHER") {
-    redirect("/staff");
+    redirect("/database");
   } else if (finalRole === "STUDENT") {
     // Check if profile exists
     let profile = await prisma.profile.findUnique({

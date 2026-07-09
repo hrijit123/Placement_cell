@@ -48,9 +48,11 @@ export default function Navbar() {
                 <Link href="/database" className={`flex items-center gap-1 text-sm font-medium ${pathname.includes('/database') ? 'text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1' : 'text-stone-500 hover:text-stone-800 transition-colors'}`}>
                   <Users className="w-4 h-4" /> Students
                 </Link>
-                <Link href={role === "ADMIN" ? "/admin" : "/staff"} className={`flex items-center gap-1 text-sm font-medium ${pathname.includes('/admin') || (pathname.includes('/staff') && !pathname.includes('syllabus')) ? 'text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1' : 'text-stone-500 hover:text-stone-800 transition-colors'}`}>
-                  <LayoutDashboard className="w-4 h-4" /> {role === "ADMIN" ? "Admin Portal" : "Staff Portal"}
-                </Link>
+                {role === "ADMIN" && (
+                  <Link href="/admin" className={`flex items-center gap-1 text-sm font-medium ${pathname.includes('/admin') ? 'text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1' : 'text-stone-500 hover:text-stone-800 transition-colors'}`}>
+                    <LayoutDashboard className="w-4 h-4" /> Admin Portal
+                  </Link>
+                )}
                 <Link href="/attendance" className={`flex items-center gap-1 text-sm font-medium ${pathname.includes('/attendance') ? 'text-[#2D4A22] border-b-2 border-[#2D4A22] pb-1' : 'text-stone-500 hover:text-stone-800 transition-colors'}`}>
                   <FileBarChart className="w-4 h-4" /> Attendance
                 </Link>
