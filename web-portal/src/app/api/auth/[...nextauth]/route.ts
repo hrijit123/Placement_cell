@@ -16,6 +16,16 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
+    async signIn({ user }) {
+      if (user?.email) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } })
+        if (dbUser && (dbUser.status === "BANNED" || dbUser.status === "SUSPENDED")) {
+          // Block sign in for banned or suspended users
+          return false;
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id
