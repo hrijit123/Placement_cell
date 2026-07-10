@@ -17,18 +17,44 @@ const parseVerifiedField = (val: string | null) => {
 };
 
 const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s: string) => void, role?: string }) => {
-  if (status === "VERIFIED") return <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800"><CheckCircle className="w-3 h-3"/> Verified</span>;
-  if (status === "SELF_REPORTED") return (
+  if (status === "VERIFIED") return (
     <span className="inline-flex items-center gap-2">
-      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800"><Clock className="w-3 h-3"/> Pending Verification</span>
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800"><CheckCircle className="w-3 h-3"/> Verified</span>
       {role === "TEACHER" && onVerify && (
-        <button onClick={() => onVerify("VERIFIED")} className="text-xs text-amber-900 bg-amber-200 hover:bg-amber-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1">
-          <CheckCircle className="w-3 h-3"/> Approve
+        <button onClick={() => { if(confirm("Remove this document?")) onVerify("REMOVED"); }} className="text-xs text-gray-900 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1" title="Remove Document">
+          <Trash2 className="w-3 h-3"/> Remove
         </button>
       )}
     </span>
   );
-  if (status === "REJECTED") return <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800"><AlertCircle className="w-3 h-3"/> Rejected</span>;
+  if (status === "SELF_REPORTED") return (
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800"><Clock className="w-3 h-3"/> Pending Verification</span>
+      {role === "TEACHER" && onVerify && (
+        <>
+          <button onClick={() => onVerify("VERIFIED")} className="text-xs text-emerald-900 bg-emerald-200 hover:bg-emerald-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1">
+            <CheckCircle className="w-3 h-3"/> Approve
+          </button>
+          <button onClick={() => onVerify("REJECTED")} className="text-xs text-red-900 bg-red-200 hover:bg-red-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1">
+            <AlertCircle className="w-3 h-3"/> Reject
+          </button>
+          <button onClick={() => { if(confirm("Remove this document?")) onVerify("REMOVED"); }} className="text-xs text-gray-900 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1" title="Remove Document">
+            <Trash2 className="w-3 h-3"/> Remove
+          </button>
+        </>
+      )}
+    </span>
+  );
+  if (status === "REJECTED") return (
+    <span className="inline-flex items-center gap-2">
+      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800"><AlertCircle className="w-3 h-3"/> Rejected</span>
+      {role === "TEACHER" && onVerify && (
+        <button onClick={() => { if(confirm("Remove this document?")) onVerify("REMOVED"); }} className="text-xs text-gray-900 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1" title="Remove Document">
+          <Trash2 className="w-3 h-3"/> Remove
+        </button>
+      )}
+    </span>
+  );
   return null;
 };
 

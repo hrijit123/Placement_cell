@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const VerifySchema = z.object({
   target: z.enum(["education", "certifications", "transcripts", "careerTrack"]),
-  status: z.enum(["VERIFIED", "REJECTED"]),
+  status: z.enum(["VERIFIED", "REJECTED", "REMOVED"]),
   recordId: z.string().optional(),
 });
 
@@ -61,24 +61,40 @@ export async function POST(req: Request, { params }: { params: Promise<{ student
       if (!recordId) return NextResponse.json({ error: "Missing recordId for careerTrack verification" }, { status: 400 });
       // Scope the update to this student's profile so a recordId belonging
       // to another student cannot be verified through this route (IDOR).
-      const updated = await prisma.careerRecord.updateMany({
-        where: { id: recordId, profileId: profile.id },
-        data: { verification: status }
-      });
-      if (updated.count === 0) {
-        return NextResponse.json({ error: "Record not found for this student" }, { status: 404 });
+      if (status === "REMOVED") {
+        const deleted = await prisma.careerRecord.deleteMany({
+          where: { id: recordId, profileId: profile.id }
+        });
+        if (deleted.count === 0) {
+          return NextResponse.json({ error: "Record not found for this student" }, { status: 404 });
+        }
+      } else {
+        const updated = await prisma.careerRecord.updateMany({
+          where: { id: recordId, profileId: profile.id },
+          data: { verification: status }
+        });
+        if (updated.count === 0) {
+          return NextResponse.json({ error: "Record not found for this student" }, { status: 404 });
+        }
       }
     } else {
       // Need to parse existing JSON string and update status
       const currentValue = profile[target as keyof typeof profile] as string | null;
       if (currentValue) {
         try {
-          const parsed = JSON.parse(currentValue);
-          parsed.status = status;
-          await prisma.profile.update({
-            where: { studentId },
-            data: { [target]: JSON.stringify(parsed) }
-          });
+          if (status === "REMOVED") {
+            await prisma.profile.update({
+              where: { studentId },
+              data: { [target]: null }
+            });
+          } else {
+            const parsed = JSON.parse(currentValue);
+            parsed.status = status;
+            await prisma.profile.update({
+              where: { studentId },
+              data: { [target]: JSON.stringify(parsed) }
+            });
+          }
         } catch (e) {
           return NextResponse.json({ error: `Failed to parse existing ${target} JSON` }, { status: 500 });
         }
