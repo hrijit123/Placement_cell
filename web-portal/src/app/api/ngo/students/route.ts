@@ -50,7 +50,7 @@ export async function GET(req: Request) {
 
     if (isExport) {
       // Build CSV
-      const headers = ["Student ID", "Name", "Email", "Cohorts", "Placements", "Latest Salary"];
+      const headers = ["Student ID", "Name", "Email", "Cohorts", "Placements", "Latest Monthly Salary"];
       const rows = profiles.map(p => {
         const placements = p.careerTrack.filter(c => c.recordType === "PLACEMENT");
         const latestPlacement = placements.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];

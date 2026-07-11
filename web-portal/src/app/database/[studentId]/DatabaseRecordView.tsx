@@ -20,7 +20,7 @@ const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s
   if (status === "VERIFIED") return (
     <span className="inline-flex items-center gap-2">
       <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800"><CheckCircle className="w-3 h-3"/> Verified</span>
-      {role === "TEACHER" && onVerify && (
+      {(role === "TEACHER" || role === "ADMIN") && onVerify && (
         <button onClick={() => { if(confirm("Remove this document?")) onVerify("REMOVED"); }} className="text-xs text-gray-900 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1" title="Remove Document">
           <Trash2 className="w-3 h-3"/> Remove
         </button>
@@ -30,7 +30,7 @@ const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s
   if (status === "SELF_REPORTED") return (
     <span className="inline-flex items-center gap-2">
       <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800"><Clock className="w-3 h-3"/> Pending Verification</span>
-      {role === "TEACHER" && onVerify && (
+      {(role === "TEACHER" || role === "ADMIN") && onVerify && (
         <>
           <button onClick={() => onVerify("VERIFIED")} className="text-xs text-emerald-900 bg-emerald-200 hover:bg-emerald-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1">
             <CheckCircle className="w-3 h-3"/> Approve
@@ -48,7 +48,7 @@ const StatusBadge = ({ status, onVerify, role }: { status: string, onVerify?: (s
   if (status === "REJECTED") return (
     <span className="inline-flex items-center gap-2">
       <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold bg-red-100 text-red-800"><AlertCircle className="w-3 h-3"/> Rejected</span>
-      {role === "TEACHER" && onVerify && (
+      {(role === "TEACHER" || role === "ADMIN") && onVerify && (
         <button onClick={() => { if(confirm("Remove this document?")) onVerify("REMOVED"); }} className="text-xs text-gray-900 bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded font-semibold transition-colors flex items-center gap-1" title="Remove Document">
           <Trash2 className="w-3 h-3"/> Remove
         </button>
@@ -278,7 +278,7 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                 { key: 'experience', label: 'Experience' },
                 { key: 'courseworks', label: 'Courseworks' },
                 { key: 'internships', label: 'Internships' },
-                { key: 'expectedSalary', label: 'Expected Salary' },
+                { key: 'expectedSalary', label: 'Expected Monthly Salary' },
                 { key: 'availability', label: 'Availability' }
               ].map(({ key, label }) => (
                 <div key={key}>
@@ -464,7 +464,7 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Salary / Offer (Optional)</label>
+                  <label className="block text-xs font-semibold mb-1 text-[#6B5E4C]">Monthly Salary / Offer (Optional)</label>
                   <input type="number" value={trackerForm.salary} onChange={e => setTrackerForm({...trackerForm, salary: e.target.value})} className="w-full border p-2 rounded" />
                 </div>
                 {trackerForm.recordType === "PLACEMENT" && trackerForm.placementStatus !== "WORKING" && (
@@ -510,7 +510,7 @@ export default function DatabaseRecordView({ studentId, role }: { studentId: str
                             </div>
                             {ct.salary && (
                               <div>
-                                <span className="text-stone-500 uppercase text-xs font-semibold tracking-wider block">Salary</span>
+                                <span className="text-stone-500 uppercase text-xs font-semibold tracking-wider block">Monthly Salary</span>
                                 {ct.salary}
                               </div>
                             )}

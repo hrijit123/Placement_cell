@@ -141,7 +141,7 @@ export default async function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           <StatCard title="Students Placed" value={placedStudents.length} />
           <StatCard title="Currently Employed" value={workingNow} />
-          <StatCard title="Avg. Placement Salary" value={avgSalary != null ? `₹${Math.round(avgSalary).toLocaleString('en-IN')}` : '—'} />
+          <StatCard title="Avg. Placement Monthly Salary" value={avgSalary != null ? `₹${Math.round(avgSalary).toLocaleString('en-IN')}` : '—'} />
         </div>
 
         <ChartsSection funnel={funnel} topEmployers={topEmployers} attendance={attendance} monthly={monthly} alumni={alumniByYear} />

@@ -111,7 +111,7 @@ export default function TeacherHRModal({ teacher, onClose, onSaved }: { teacher:
 
           <div className="col-span-2 text-[#2C241B] font-serif font-bold text-lg border-b pb-1 mb-2 mt-4">Compensation</div>
           <div>
-            <label className="block text-xs font-semibold uppercase text-stone-500 mb-1">Current Salary</label>
+            <label className="block text-xs font-semibold uppercase text-stone-500 mb-1">Current Monthly Salary</label>
             <input type="number" value={form.salary} onChange={e => setForm({...form, salary: e.target.value})} className="w-full border border-stone-300 p-2 rounded"/>
           </div>
           <div>
