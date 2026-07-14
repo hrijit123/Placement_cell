@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DEEDS Placement Cell Portal
 
-## Getting Started
+A comprehensive, full-stack placement and student management portal built to streamline operations for the DEEDS NGO. This platform tracks student progress, attendance, document verification, and end-to-end career placements, giving teachers, students, and administrators unified access to critical educational data.
 
-First, run the development server:
+## 🚀 Built With "Vibe Coding"
+This project was developed rapidly under a tight deadline through **AI-assisted "vibe coding"**. By pair-programming with an autonomous AI coding assistant, we functioned as a technical architect and reviewer, delegating boilerplate generation and complex UI implementations to the AI while focusing on robust database design, role-based security, and product direction.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🛠 Tech Stack
+* **Framework:** [Next.js (App Router)](https://nextjs.org/)
+* **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+* **Database:** [PostgreSQL](https://www.postgresql.org/) managed via [Prisma ORM](https://www.prisma.io/)
+* **Authentication:** [NextAuth.js](https://next-auth.js.org/) (Google Provider with Role-Based Access)
+* **Deployment:** [Vercel](https://vercel.com/)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ✨ Key Features
+* **Role-Based Access Control (RBAC):** Distinct dashboards and permissions for `ADMIN`, `TEACHER`, and `STUDENT` roles.
+* **Student Database:** Centralized tracking of student profiles, education, certifications, and courseworks.
+* **Document Verification:** Workflow for students to upload credentials and for Teachers/Admins to Approve, Reject, or Remove them.
+* **Placement & Career Tracking:** Track interview schedules, outcomes, and final job placements with monthly salary metrics.
+* **Attendance Tracking:** Keep track of student attendance across various cohorts.
+* **PDF Report Generation:** Generate detailed, downloadable PDF report cards summarizing student performance and placements.
+* **Admin Analytics:** Bird's eye view of placement funnels, top employers, average monthly salaries, and staff HR records.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 💻 Getting Started
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Prerequisites
+- Node.js 18+
+- PostgreSQL instance (local or hosted, e.g., Neon/Supabase)
 
-## Learn More
+### Installation
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/hrijit123/Placement_cell.git
+   cd Placement_cell
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Environment Setup:**
+   Create a `.env` file in the root directory based on `.env.example` (if provided) and add the following variables:
+   ```env
+   DATABASE_URL="postgresql://user:password@localhost:5432/deeds"
+   NEXTAUTH_SECRET="your-nextauth-secret"
+   NEXTAUTH_URL="http://localhost:3000"
+   GOOGLE_CLIENT_ID="your-google-oauth-client-id"
+   GOOGLE_CLIENT_SECRET="your-google-oauth-client-secret"
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Initialize the Database:**
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+   *(Optional) To populate the database with mock data for testing:*
+   ```bash
+   npx prisma db seed
+   ```
 
-## Deploy on Vercel
+5. **Run the Development Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🤝 Contributing
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+This project is open-source and available under the [MIT License](LICENSE).
