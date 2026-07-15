@@ -3,7 +3,9 @@
 A comprehensive, full-stack placement and student management portal built to streamline operations for the DEEDS NGO. This platform tracks student progress, attendance, document verification, and end-to-end career placements, giving teachers, students, and administrators unified access to critical educational data.
 
 ## 🚀 Built With "Vibe Coding"
-This project was developed rapidly under a tight deadline through **AI-assisted "vibe coding"**. By pair-programming with an autonomous AI coding assistant, we functioned as a technical architect and reviewer, delegating boilerplate generation and complex UI implementations to the AI while focusing on robust database design, role-based security, and product direction.
+This project was developed rapidly under a tight deadline through **AI-assisted "vibe coding"**. I do not have a technical background in Next.js, TypeScript, or Prisma. Instead, I pair-programmed with an autonomous AI coding assistant (Antigravity/Gemini). 
+
+I functioned strictly as the **Product Manager and Domain Expert**—defining the requirements, business logic, user roles, and testing the workflows. The AI handled all the boilerplate generation, database implementation, UI coding (Tailwind CSS), and complex TypeScript logic. This project is a testament to how AI can bridge the gap between a product vision and a fully deployed, production-ready application.
 
 ## 🛠 Tech Stack
 * **Framework:** [Next.js (App Router)](https://nextjs.org/)
