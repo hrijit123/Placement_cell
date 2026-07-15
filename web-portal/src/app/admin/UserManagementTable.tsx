@@ -167,14 +167,7 @@ export default function UserManagementTable() {
                       Suspend
                     </button>
                   )}
-                  {u.status !== 'BANNED' && (
-                    <button 
-                      onClick={() => { setSelectedUser(u); setNewStatus("BANNED"); setModalOpen(true); }}
-                      className="text-xs font-semibold text-red-600 hover:underline"
-                    >
-                      Ban
-                    </button>
-                  )}
+
                   <button 
                     onClick={() => { setSelectedUser(u); setDeleteModalOpen(true); }}
                     className="text-xs font-semibold text-red-800 hover:underline"

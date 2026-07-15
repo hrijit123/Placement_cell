@@ -1,10 +1,13 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
+    const body = await req.json().catch(() => ({}));
+    const providedName = body.name || null;
+
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.email) {
@@ -33,11 +36,21 @@ export async function POST(req: Request) {
       newId = "STU-" + Math.floor(10000 + Math.random() * 90000);
     }
 
+    // If they provided a custom name that differs from their google name, we should probably update their user name too
+    if (providedName && providedName !== user.name) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { name: providedName }
+      });
+    }
+
+    const finalName = providedName || user.name || "New Student";
+
     const profile = await prisma.profile.create({
       data: {
         userId: user.id,
         studentId: newId,
-        name: user.name || "New Student",
+        name: finalName,
       }
     });
 

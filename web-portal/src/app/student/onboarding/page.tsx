@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
@@ -11,6 +11,13 @@ export default function StudentOnboarding() {
   const [error, setError] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
   const [generatedId, setGeneratedId] = useState<string | null>(null);
+  const [studentName, setStudentName] = useState("");
+
+  useEffect(() => {
+    if (session?.user?.name) {
+      setStudentName(session.user.name);
+    }
+  }, [session?.user?.name]);
 
   if (status === "loading") {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -54,6 +61,8 @@ export default function StudentOnboarding() {
     try {
       const res = await fetch("/api/ngo/students/self-register", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: studentName.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -140,6 +149,16 @@ export default function StudentOnboarding() {
               If you don't have a PIN and your teacher hasn't created a profile for you yet, click below to generate your own Student ID instantly.
             </p>
             <div className="mt-auto">
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-stone-600 uppercase mb-1">Your Full Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  className="w-full px-4 py-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-600 focus:border-transparent outline-none"
+                />
+              </div>
               <button
                 onClick={handleSelfRegister}
                 disabled={isRegistering}

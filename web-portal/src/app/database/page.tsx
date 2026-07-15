@@ -295,7 +295,7 @@ export default function DatabaseHome() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Expected Salary</label>
+                  <label className="block text-sm font-semibold text-[#6B5E4C] mb-1">Expected Monthly Salary</label>
                   <input
                     value={formData.expectedSalary}
                     onChange={(e) => setFormData({...formData, expectedSalary: e.target.value})}
